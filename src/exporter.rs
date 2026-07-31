@@ -182,7 +182,7 @@ impl PNGRasterExporter {
         let w = width as usize;
         let h = height as usize;
 
-        let (bg_hex, card_hex, accent1_hex, _accent2_hex, text_hex) = spec.theme.colors();
+        let (bg_hex, card_hex, accent1_hex, accent2_hex, text_hex) = spec.theme.colors();
         let (bg_r, bg_g, bg_b) = hex_to_rgb_u8(bg_hex);
         let (card_r, card_g, card_b) = hex_to_rgb_u8(card_hex);
         let (acc_r, acc_g, acc_b) = hex_to_rgb_u8(accent1_hex);
@@ -219,8 +219,27 @@ impl PNGRasterExporter {
             renderer.draw_text(&mut px, w, h, (x + 16) as f32, 194.0, 11.0, (154, 163, 175), &m.label.to_uppercase());
         }
 
+        // Chart region (mirrors SVG chart at y=240, height 260) — D1 parity
+        if let Some(chart) = &spec.chart {
+            let chart_w = width as usize - 80;
+            let chart_h = 260usize;
+            crate::chart_raster::draw_chart_raster(
+                chart,
+                &mut px,
+                w,
+                h,
+                40,
+                240,
+                chart_w,
+                chart_h,
+                (acc_r, acc_g, acc_b),
+                hex_to_rgb_u8(accent2_hex),
+                (text_r, text_g, text_b),
+            );
+        }
+
         // Section cards + step connectors (mirrors SVG at start_y=240, sec_h=100)
-        let start_y = 240usize;
+        let start_y = if spec.chart.is_some() { 520 } else { 240 };
         let sec_h = 100usize;
         for (i, s) in spec.sections.iter().enumerate() {
             let y = start_y + i * (sec_h + 16);
