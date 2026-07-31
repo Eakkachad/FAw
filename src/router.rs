@@ -207,8 +207,7 @@ impl SVGVectorRenderer {
             width, height, width, height
         ));
         svg.push_str("<defs>\n  <style>\n");
-        svg.push_str("    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&amp;display=swap');\n");
-        svg.push_str("    text { font-family: 'Inter', system-ui, -apple-system, sans-serif; }\n");
+        svg.push_str("    text { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; }\n");
         svg.push_str(&format!("    .title {{ font-size: 28px; font-weight: 800; fill: {}; }}\n", text_color));
         svg.push_str("    .subtitle { font-size: 14px; font-weight: 400; fill: #9CA3AF; }\n");
         svg.push_str(&format!("    .card-title {{ font-size: 16px; font-weight: 600; fill: {}; }}\n", text_color));

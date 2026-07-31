@@ -3,5 +3,5 @@
 pub mod router;
 pub mod exporter;
 
-pub use exporter::ExportManager;
+pub use exporter::{ExportManager, PDFVectorExporter, PPTXPresentationExporter, PNGRasterExporter};
 pub use router::{InfographicConstraintPruner, InfographicIntentRouter, InfographicLayoutSpec, SVGVectorRenderer};
