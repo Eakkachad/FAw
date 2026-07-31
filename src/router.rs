@@ -754,7 +754,8 @@ impl SVGVectorRenderer {
             width, height, width, height
         ));
         svg.push_str("<defs>\n  <style>\n");
-        svg.push_str("    text { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; }\n");
+        svg.push_str(&crate::font::font_style_block());
+        svg.push_str(&format!("    text {{ font-family: {}; }}\n", crate::font::FONT_STACK));
         svg.push_str(&format!("    .title {{ font-size: 28px; font-weight: 800; fill: {}; }}\n", text_color));
         svg.push_str("    .subtitle { font-size: 14px; font-weight: 400; fill: #9CA3AF; }\n");
         svg.push_str(&format!("    .card-title {{ font-size: 16px; font-weight: 600; fill: {}; }}\n", text_color));

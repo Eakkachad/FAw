@@ -1,6 +1,7 @@
 //! katSVG Engine — High-Speed, Lightweight, Zero-Hallucination SVG Infographic Generator Crate
 
 pub mod chart;
+pub mod font;
 pub mod icon;
 pub mod palette;
 pub mod retrieval;
