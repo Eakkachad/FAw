@@ -1,7 +1,8 @@
 //! katSVG CLI — Standalone Command Line Tool for Text-to-Infographic Generation
 
-use katsvg_engine::{ExportManager, InfographicIntentRouter};
+use katsvg_engine::{ExportManager, InfographicIntentRouter, parse_data};
 use std::env;
+use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
@@ -52,10 +53,23 @@ fn main() {
     println!("📥 Input Prompt : \"{}\"", prompt);
     println!("📂 Output Dir   : \"{}\"\n", out_dir_str);
 
+    let data_path = args
+        .iter()
+        .position(|a| a == "--data" || a == "-d")
+        .and_then(|pos| args.get(pos + 1).cloned());
+
     let start_time = Instant::now();
 
     let router = InfographicIntentRouter::new();
-    let spec = router.parse_and_route(&prompt);
+    let spec = match &data_path {
+        Some(path) => {
+            let content = fs::read_to_string(path).expect("failed to read data file");
+            let data = parse_data(&content, path).expect("failed to parse data file");
+            println!("📊 Bound data from : \"{}\"", path);
+            router.parse_and_bind(&prompt, &data)
+        }
+        None => router.parse_and_route(&prompt),
+    };
     let route_duration = start_time.elapsed();
 
     let out_dir = Path::new(out_dir_str);

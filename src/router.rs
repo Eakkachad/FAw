@@ -397,6 +397,35 @@ impl InfographicIntentRouter {
         spec
     }
 
+    /// Parse a prompt then override metrics/sections/chart with external bound
+    /// data (D4). Prompt still controls layout/theme/aspect; data supplies values.
+    pub fn parse_and_bind(
+        &self,
+        prompt: &str,
+        data: &crate::data_binding::BoundData,
+    ) -> InfographicLayoutSpec {
+        let mut spec = self.parse_and_route(prompt);
+        if !data.metrics.is_empty() {
+            spec.metrics = data.metrics.clone();
+        }
+        if !data.sections.is_empty() {
+            spec.sections = data.sections.clone();
+        }
+        if let Some(chart) = &data.chart {
+            spec.chart = Some(chart.clone());
+        }
+        // Re-validate against the already-retrieved layout constraints.
+        let layout = self
+            .corpus
+            .iter()
+            .find(|l| l.layout_type == spec.layout_type)
+            .or_else(|| self.corpus.first());
+        if let Some(l) = layout {
+            self.pruner.clamp(&mut spec, &l.constraints);
+        }
+        spec
+    }
+
     /// Rank corpus layouts via the retrieval pipeline; aspect fit breaks ties.
     /// Applies an OOD gate: when the best retrieval relevance falls below
     /// [`RETRIEVAL_THRESHOLD`], fall back to layout-type classification (the

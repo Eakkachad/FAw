@@ -4,6 +4,7 @@ pub mod chart;
 pub mod chart_pdf;
 pub mod chart_pptx;
 pub mod chart_raster;
+pub mod data_binding;
 pub mod font;
 pub mod icon;
 pub mod palette;
@@ -13,6 +14,7 @@ pub mod text;
 pub mod exporter;
 
 pub use chart::{ChartColors, ChartGlyphRenderer};
+pub use data_binding::{BoundData, parse_data};
 pub use exporter::{ExportManager, PDFVectorExporter, PPTXPresentationExporter, PNGRasterExporter};
 pub use font::{FONT_STACK, font_style_block};
 pub use icon::IconRenderer;
