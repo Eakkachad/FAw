@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katsvg.dev/schemas/svg_primitives.schema.json",
+  "title": "katSVG SVG Primitives",
+  "description": "Reusable vector primitives (card, badge, connector, icon slot, chart glyphs) emitted by the SVG renderer. Each primitive is fully self-contained SVG fragment in unit coordinates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$defs"],
+  "$defs": {
+    "primitiveKind": {
+      "type": "string",
+      "enum": ["card", "badge", "connector", "icon", "barGlyph", "lineGlyph", "pieGlyph", "scatterGlyph", "heatmapGlyph", "gaugeGlyph", "sectionMarker"]
+    },
+    "glyphSlot": {
+      "type": "object",
+      "description": "Named anchor on a layout region where a primitive may be placed.",
+      "additionalProperties": false,
+      "required": ["name", "x", "y"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "x": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "y": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "rotation": { "type": "number" }
+      }
+    },
+    "primitive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "svg"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/primitiveKind" },
+        "description": { "type": "string" },
+        "width": { "type": "number", "minimum": 1 },
+        "height": { "type": "number", "minimum": 1 },
+        "svg": {
+          "type": "string",
+          "description": "SVG fragment body (child elements only, unit coordinate system). Placeholders: {bg}, {cardBg}, {accent1}, {accent2}, {text}."
+        }
+      }
+    }
+  }
+}

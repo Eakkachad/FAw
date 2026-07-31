@@ -1,0 +1,23 @@
+{
+  "id": "chart_dashboard",
+  "layoutType": "StatisticalDashboard",
+  "description": "Data-dense dashboard variant with a dominant chart region, metric strip, and section breakdown.",
+  "regions": [
+    { "id": "header", "x": 0.05, "y": 0.04, "width": 0.9, "height": 0.07, "slot": "title" },
+    { "id": "subheader", "x": 0.05, "y": 0.11, "width": 0.9, "height": 0.04, "slot": "subtitle" },
+    { "id": "metrics", "x": 0.05, "y": 0.17, "width": 0.9, "height": 0.09, "slot": "metrics" },
+    { "id": "chart", "x": 0.05, "y": 0.28, "width": 0.6, "height": 0.62, "slot": "chart" },
+    { "id": "sections", "x": 0.68, "y": 0.28, "width": 0.27, "height": 0.62, "slot": "sections" },
+    { "id": "footer", "x": 0.05, "y": 0.95, "width": 0.9, "height": 0.03, "slot": "footer" }
+  ],
+  "constraints": {
+    "maxMetrics": 6,
+    "minMetrics": 1,
+    "maxSections": 6,
+    "minSections": 0,
+    "maxTitleLength": 80,
+    "maxFooterLength": 64,
+    "allowedAspectRatios": ["A4Poster", "Banner16_9"],
+    "maxGlyphsPerChart": 16
+  }
+}

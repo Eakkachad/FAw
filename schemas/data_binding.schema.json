@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katsvg.dev/schemas/data_binding.schema.json",
+  "title": "katSVG Data Binding",
+  "description": "Maps prompt-extracted or supplied data payloads onto InfographicLayoutSpec slots (title, subtitle, metrics[], sections[], chart series). Deterministic: no value may be invented, only bound, clamped, or rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$defs"],
+  "$defs": {
+    "textSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "target", "format"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["title", "subtitle", "footer", "prompt", "static"],
+          "description": "Where the value comes from. 'static' = literal in the layout; 'prompt' = extracted from user text."
+        },
+        "target": { "type": "string", "enum": ["title", "subtitle", "footer"] },
+        "format": {
+          "type": "string",
+          "description": "Optional printf-like formatter, e.g. '{value}' or 'Q3 {value}'."
+        },
+        "fallback": { "type": "string" }
+      }
+    },
+    "metricBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "value", "source"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 },
+        "icon": { "type": "string", "description": "Icon id from icon set; empty = no icon." },
+        "source": {
+          "type": "string",
+          "enum": ["prompt", "data", "static"],
+          "description": "'data' = bound from a supplied data file/JSON; 'prompt' = extracted from user text."
+        }
+      }
+    },
+    "sectionBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stepNumber", "title"],
+      "properties": {
+        "stepNumber": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "source": { "type": "string", "enum": ["prompt", "data", "static"] }
+      }
+    },
+    "chartSeries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chartType", "labels", "values"],
+      "properties": {
+        "chartType": {
+          "type": "string",
+          "enum": ["bar", "line", "pie", "scatter", "heatmap", "gauge"]
+        },
+        "labels": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "values": { "type": "array", "items": { "type": "number" }, "minItems": 1 },
+        "unit": { "type": "string" },
+        "maxDataPoints": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layoutId", "textSlots", "metrics", "sections"],
+      "properties": {
+        "layoutId": { "type": "string", "minLength": 1 },
+        "textSlots": { "type": "array", "items": { "$ref": "#/$defs/textSlot" } },
+        "metrics": { "type": "array", "items": { "$ref": "#/$defs/metricBinding" } },
+        "sections": { "type": "array", "items": { "$ref": "#/$defs/sectionBinding" } },
+        "chart": { "$ref": "#/$defs/chartSeries" }
+      }
+    }
+  }
+}

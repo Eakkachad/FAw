@@ -1,0 +1,23 @@
+{
+  "id": "mindmap_hierarchy",
+  "layoutType": "MindmapHierarchy",
+  "description": "Radial/org-tree hierarchy for conceptual breakdowns with a central root and branch sections.",
+  "regions": [
+    { "id": "header", "x": 0.05, "y": 0.04, "width": 0.9, "height": 0.07, "slot": "title" },
+    { "id": "subheader", "x": 0.05, "y": 0.11, "width": 0.9, "height": 0.04, "slot": "subtitle" },
+    { "id": "branches", "x": 0.05, "y": 0.2, "width": 0.9, "height": 0.7, "slot": "sections" },
+    { "id": "footer", "x": 0.05, "y": 0.95, "width": 0.9, "height": 0.03, "slot": "footer" }
+  ],
+  "connectors": [
+    { "from": "branches", "to": "branches", "style": "curve" }
+  ],
+  "constraints": {
+    "maxMetrics": 0,
+    "minMetrics": 0,
+    "maxSections": 8,
+    "minSections": 2,
+    "maxTitleLength": 80,
+    "maxFooterLength": 64,
+    "allowedAspectRatios": ["A4Poster", "Square1_1"]
+  }
+}

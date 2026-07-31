@@ -1,0 +1,22 @@
+{
+  "id": "statistical_dashboard",
+  "layoutType": "StatisticalDashboard",
+  "description": "KPI dashboard with a metric-card band and a data/chart region for quantitative summaries.",
+  "regions": [
+    { "id": "header", "x": 0.05, "y": 0.04, "width": 0.9, "height": 0.07, "slot": "title" },
+    { "id": "subheader", "x": 0.05, "y": 0.11, "width": 0.9, "height": 0.04, "slot": "subtitle" },
+    { "id": "metrics", "x": 0.05, "y": 0.17, "width": 0.9, "height": 0.1, "slot": "metrics" },
+    { "id": "chart", "x": 0.05, "y": 0.32, "width": 0.9, "height": 0.55, "slot": "chart" },
+    { "id": "footer", "x": 0.05, "y": 0.95, "width": 0.9, "height": 0.03, "slot": "footer" }
+  ],
+  "constraints": {
+    "maxMetrics": 6,
+    "minMetrics": 1,
+    "maxSections": 0,
+    "minSections": 0,
+    "maxTitleLength": 80,
+    "maxFooterLength": 64,
+    "allowedAspectRatios": ["A4Poster", "Banner16_9"],
+    "maxGlyphsPerChart": 12
+  }
+}

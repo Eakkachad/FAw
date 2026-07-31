@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katsvg.dev/schemas/layout_corpus.schema.json",
+  "title": "katSVG Layout Corpus",
+  "description": "Registry of layout archetypes. Each LayoutDef declares geometry regions, slot graph, and structural constraints that an InfographicLayoutSpec must satisfy. Closed enum `layoutType` mirrors katsvg_engine::router::LayoutType.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$defs"],
+  "$defs": {
+    "layoutType": {
+      "type": "string",
+      "enum": [
+        "ProcessTimeline",
+        "StatisticalDashboard",
+        "ComparisonGrid",
+        "MindmapHierarchy"
+      ],
+      "description": "MUST match katsvg_engine::router::LayoutType"
+    },
+    "regionSpec": {
+      "type": "object",
+      "description": "A rectangular region in unit coordinates (0.0..=1.0 relative to canvas).",
+      "additionalProperties": false,
+      "required": ["id", "x", "y", "width", "height", "slot"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "x": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "y": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "width": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "height": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "slot": { "$ref": "#/$defs/slotType" }
+      }
+    },
+    "slotType": {
+      "type": "string",
+      "enum": ["title", "subtitle", "metrics", "sections", "chart", "footer"],
+      "description": "Which InfographicLayoutSpec field binds to this region."
+    },
+    "connector": {
+      "type": "object",
+      "description": "Visual connector between two regions (e.g., timeline arrow).",
+      "additionalProperties": false,
+      "required": ["from", "to", "style"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "style": { "type": "string", "enum": ["arrow", "dashed-line", "line", "curve"] }
+      }
+    },
+    "layoutDef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "layoutType", "regions", "constraints"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "layoutType": { "$ref": "#/$defs/layoutType" },
+        "description": { "type": "string" },
+        "regions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/regionSpec" },
+          "minItems": 1
+        },
+        "connectors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/connector" }
+        },
+        "constraints": { "$ref": "#/$defs/constraints" }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "description": "Structural bounds enforced by InfographicConstraintPruner.",
+      "additionalProperties": false,
+      "properties": {
+        "maxMetrics": { "type": "integer", "minimum": 0 },
+        "minMetrics": { "type": "integer", "minimum": 0 },
+        "maxSections": { "type": "integer", "minimum": 0 },
+        "minSections": { "type": "integer", "minimum": 0 },
+        "maxTitleLength": { "type": "integer", "minimum": 1 },
+        "maxFooterLength": { "type": "integer", "minimum": 0 },
+        "allowedAspectRatios": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["A4Poster", "Banner16_9", "Square1_1"] }
+        },
+        "maxGlyphsPerChart": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

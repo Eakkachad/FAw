@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://katsvg.dev/schemas/palette_library.schema.json",
+  "title": "katSVG Palette Library",
+  "description": "Palette entries with named color roles, pre-computed WCAG contrast ratios, and color-blind-safe flags. `paletteType` mirrors katsvg_engine::router::PaletteTheme.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$defs"],
+  "$defs": {
+    "paletteType": {
+      "type": "string",
+      "enum": ["TechDark", "FinancialNavy", "VibrantCoral", "AcademicWarm"],
+      "description": "MUST match katsvg_engine::router::PaletteTheme"
+    },
+    "hexColor": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "description": "6-digit hex RGB color."
+    },
+    "contrastPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["foreground", "background", "ratio"],
+      "properties": {
+        "foreground": { "$ref": "#/$defs/hexColor" },
+        "background": { "$ref": "#/$defs/hexColor" },
+        "ratio": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 21.0,
+          "description": "WCAG contrast ratio (4.5:1 for normal text, 3:1 for large text)."
+        }
+      }
+    },
+    "paletteEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "paletteType", "roles", "contrastPairs"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "paletteType": { "$ref": "#/$defs/paletteType" },
+        "description": { "type": "string" },
+        "roles": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bg", "cardBg", "accent1", "accent2", "text"],
+          "properties": {
+            "bg": { "$ref": "#/$defs/hexColor" },
+            "cardBg": { "$ref": "#/$defs/hexColor" },
+            "accent1": { "$ref": "#/$defs/hexColor" },
+            "accent2": { "$ref": "#/$defs/hexColor" },
+            "text": { "$ref": "#/$defs/hexColor" }
+          }
+        },
+        "contrastPairs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/contrastPair" },
+          "minItems": 1
+        },
+        "colorBlindSafe": { "type": "boolean" },
+        "darkMode": { "type": "boolean" }
+      }
+    }
+  }
+}
