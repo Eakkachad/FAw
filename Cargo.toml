@@ -1,0 +1,15 @@
+[package]
+name = "katsvg-engine"
+version = "0.1.0"
+edition = "2024"
+description = "Lightweight, High-Speed, Zero-Hallucination SVG Infographic Generator"
+
+[dependencies]
+katgpt-core = { path = "../katgpt-rs/crates/katgpt-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+fastrand = "2"
+
+[[bin]]
+name = "katsvg"
+path = "src/bin/katsvg.rs"
