@@ -266,16 +266,25 @@ impl InfographicConstraintPruner {
     pub fn clamp(&self, spec: &mut InfographicLayoutSpec, c: &LayoutConstraints) {
         spec.metrics.truncate(c.max_metrics);
         spec.sections.truncate(c.max_sections);
-        spec.title.truncate(c.max_title_length);
+        spec.title = truncate_chars(&spec.title, c.max_title_length);
         if !c.allowed_aspect_ratios.is_empty() && !c.allowed_aspect_ratios.contains(&spec.aspect_ratio) {
             spec.aspect_ratio = c.allowed_aspect_ratios[0];
         }
         if let Some(footer) = &mut spec.footer_note {
             if c.max_footer_length > 0 {
-                footer.truncate(c.max_footer_length);
+                *footer = truncate_chars(footer, c.max_footer_length);
             }
         }
     }
+}
+
+/// Truncates a string to at most `max` characters (not bytes), preserving UTF-8
+/// boundaries so multi-byte scripts (Thai, CJK) never panic or split mid-codepoint.
+fn truncate_chars(s: &str, max: usize) -> String {
+    if max == 0 {
+        return String::new();
+    }
+    s.chars().take(max).collect()
 }
 
 impl ConstraintPruner for InfographicConstraintPruner {
@@ -425,11 +434,17 @@ impl InfographicIntentRouter {
 const RETRIEVAL_THRESHOLD: f32 = 0.05;
 
 fn classify_layout_type(prompt_lower: &str) -> LayoutType {
-    if contains_any(prompt_lower, &["timeline", "step", "roadmap", "process", "phase"]) {
+    if contains_any(prompt_lower, &["timeline", "step", "roadmap", "process", "phase"])
+        || contains_any(prompt_lower, &["ขั้นตอน", "ไทม์ไลน์", "ลำดับ", "กระบวนการ", "ช่วงเวลา", "เส้นเวลา"])
+    {
         LayoutType::ProcessTimeline
-    } else if contains_any(prompt_lower, &["dashboard", "stat", "metric", "kpi", "chart"]) {
+    } else if contains_any(prompt_lower, &["dashboard", "stat", "metric", "kpi", "chart"])
+        || contains_any(prompt_lower, &["แดชบอร์ด", "สถิติ", "ตัวชี้วัด", "รายงาน", "กราฟ", "ข้อมูล"])
+    {
         LayoutType::StatisticalDashboard
-    } else if contains_any(prompt_lower, &["compare", "vs", "feature", "matrix", "grid"]) {
+    } else if contains_any(prompt_lower, &["compare", "vs", "feature", "matrix", "grid"])
+        || contains_any(prompt_lower, &["เปรียบเทียบ", "เทียบ", "ตาราง", "จุดเด่น", "ข้อดี"])
+    {
         LayoutType::ComparisonGrid
     } else {
         LayoutType::MindmapHierarchy
@@ -437,19 +452,33 @@ fn classify_layout_type(prompt_lower: &str) -> LayoutType {
 }
 
 fn classify_theme(prompt_lower: &str) -> PaletteTheme {
-    if contains_any(prompt_lower, &["navy", "finance", "bank"]) {
+    if contains_any(prompt_lower, &["navy", "finance", "bank"])
+        || contains_any(prompt_lower, &["การเงิน", "ธนาคาร", "น้ำเงินเข้ม"])
+    {
         PaletteTheme::FinancialNavy
-    } else if contains_any(prompt_lower, &["ocean", "sea", "aqua", "breeze", "sky"]) {
+    } else if contains_any(prompt_lower, &["ocean", "sea", "aqua", "breeze", "sky"])
+        || contains_any(prompt_lower, &["ทะเล", "ฟ้า", "มหาสมุทร"])
+    {
         PaletteTheme::OceanBreeze
-    } else if contains_any(prompt_lower, &["sunset", "sun", "glow", "violet", "purple"]) {
+    } else if contains_any(prompt_lower, &["sunset", "sun", "glow", "violet", "purple"])
+        || contains_any(prompt_lower, &["พระอาทิตย์ตก", "ส้ม", "ม่วง"])
+    {
         PaletteTheme::SunsetGlow
-    } else if contains_any(prompt_lower, &["forest", "green", "mint", "nature", "eco"]) {
+    } else if contains_any(prompt_lower, &["forest", "green", "mint", "nature", "eco"])
+        || contains_any(prompt_lower, &["ธรรมชาติ", "เขียว", "ป่า", "สิ่งแวดล้อม"])
+    {
         PaletteTheme::ForestMint
-    } else if contains_any(prompt_lower, &["mono", "grayscale", "grey", "gray", "bw", "minimal", "black and white"]) {
+    } else if contains_any(prompt_lower, &["mono", "grayscale", "grey", "gray", "bw", "minimal", "black and white"])
+        || contains_any(prompt_lower, &["ขาวดำ", "มินิมอล", "โมโน"])
+    {
         PaletteTheme::Monochrome
-    } else if contains_any(prompt_lower, &["warm", "coral", "creative"]) {
+    } else if contains_any(prompt_lower, &["warm", "coral", "creative"])
+        || contains_any(prompt_lower, &["สร้างสรรค์", "ปะการัง", "อบอุ่น"])
+    {
         PaletteTheme::VibrantCoral
-    } else if contains_any(prompt_lower, &["academic", "paper", "gold"]) {
+    } else if contains_any(prompt_lower, &["academic", "paper", "gold"])
+        || contains_any(prompt_lower, &["วิชาการ", "กระดาษ", "ทอง"])
+    {
         PaletteTheme::AcademicWarm
     } else {
         PaletteTheme::TechDark
@@ -457,9 +486,13 @@ fn classify_theme(prompt_lower: &str) -> PaletteTheme {
 }
 
 fn classify_aspect_ratio(prompt_lower: &str) -> AspectRatio {
-    if contains_any(prompt_lower, &["banner", "header", "landscape"]) {
+    if contains_any(prompt_lower, &["banner", "header", "landscape"])
+        || contains_any(prompt_lower, &["แบนเนอร์", "หัวข้อ", "แนวนอน"])
+    {
         AspectRatio::Banner16_9
-    } else if contains_any(prompt_lower, &["square", "post"]) {
+    } else if contains_any(prompt_lower, &["square", "post"])
+        || contains_any(prompt_lower, &["สี่เหลี่ยม", "โพสต์", "จัตุรัส"])
+    {
         AspectRatio::Square1_1
     } else {
         AspectRatio::A4Poster
@@ -483,7 +516,8 @@ fn extract_title(prompt: &str) -> Option<String> {
     Some(title)
 }
 
-/// Extracts an explicit step count from patterns like "4-step", "4 step", "4 phases".
+/// Extracts an explicit step count from patterns like "4-step", "4 step", "4 phases",
+/// or Thai numerals "๔ขั้น" / "สี่ขั้นตอน".
 fn extract_step_count(prompt_lower: &str) -> Option<usize> {
     let bytes = prompt_lower.as_bytes();
     let mut i = 0;
@@ -495,11 +529,21 @@ fn extract_step_count(prompt_lower: &str) -> Option<usize> {
             }
             let n: usize = prompt_lower[start..i].parse().ok()?;
             let rest: String = prompt_lower[i..].chars().take(12).collect();
-            if n >= 1 && (rest.contains("step") || rest.contains("phase") || rest.starts_with("-step")) {
+            if n >= 1 && (rest.contains("step") || rest.contains("phase") || rest.contains("ขั้น") || rest.starts_with("-step")) {
                 return Some(n);
             }
         }
         i += 1;
+    }
+    // Thai word numerals (zero..ten)
+    const THAI_NUM: [(&str, usize); 10] = [
+        ("หนึ่ง", 1), ("สอง", 2), ("สาม", 3), ("สี่", 4), ("ห้า", 5),
+        ("หก", 6), ("เจ็ด", 7), ("แปด", 8), ("เก้า", 9), ("สิบ", 10),
+    ];
+    for (word, n) in THAI_NUM {
+        if prompt_lower.contains(word) && prompt_lower.contains("ขั้น") {
+            return Some(n);
+        }
     }
     None
 }
@@ -512,8 +556,11 @@ fn extract_metrics(prompt_lower: &str) -> Vec<MetricCardSpec> {
         let part = part.trim();
         if let Some((k, v)) = part.split_once(':') {
             let key = k.trim().to_string();
-            let value = v.trim().to_string();
-            if key.len() > 0 && value.len() > 0 && value.chars().next().is_some_and(|c| c.is_ascii_digit() || c == '<') {
+            let value = normalize_thai_digits(v.trim());
+            let starts_numeric = value.chars().next().is_some_and(|c| {
+                c.is_ascii_digit() || c == '<' || c == '>' || thai_digit(c).is_some()
+            });
+            if key.len() > 0 && value.len() > 0 && starts_numeric {
                 out.push(MetricCardSpec {
                     label: key.to_uppercase(),
                     value,
@@ -606,11 +653,15 @@ fn extract_chart(prompt_lower: &str) -> Option<ChartSpec> {
 }
 
 /// Parses the leading numeric portion of a string ("124m", "28%", "15" → Some).
+/// Supports Thai numerals (๐-๙) as well as ASCII digits.
 fn parse_number_prefix(s: &str) -> Option<f64> {
     let mut end = 0;
     for (i, c) in s.char_indices() {
         if c.is_ascii_digit() || c == '.' || c == '-' {
             end = i + c.len_utf8();
+        } else if let Some(d) = thai_digit(c) {
+            end = i + c.len_utf8();
+            let _ = d;
         } else {
             break;
         }
@@ -618,7 +669,29 @@ fn parse_number_prefix(s: &str) -> Option<f64> {
     if end == 0 {
         return None;
     }
-    s[..end].parse::<f64>().ok()
+    let ascii: String = s[..end]
+        .chars()
+        .map(|c| match thai_digit(c) {
+            Some(d) => char::from(b'0' + d as u8),
+            None => c,
+        })
+        .collect();
+    ascii.parse::<f64>().ok()
+}
+
+/// Maps a Thai numeral character (๐..๙) to its digit value.
+fn thai_digit(c: char) -> Option<u32> {
+    ('\u{0E50}'..='\u{0E59}').contains(&c).then(|| c as u32 - '\u{0E50}' as u32)
+}
+
+/// Converts Thai numeral characters in a string to ASCII digits.
+fn normalize_thai_digits(s: &str) -> String {
+    s.chars()
+        .map(|c| match thai_digit(c) {
+            Some(d) => char::from(b'0' + d as u8),
+            None => c,
+        })
+        .collect()
 }
 
 /// Splits the prompt into meaningful words (stop words removed, deduped).
