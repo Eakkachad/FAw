@@ -99,6 +99,9 @@ pub enum ChartType {
     Scatter,
     Heatmap,
     Gauge,
+    Donut,
+    StackedBar,
+    Area,
 }
 
 /// Chart data bound to a chart slot (labels/values come from the prompt,
@@ -530,7 +533,11 @@ const STOP_WORDS: &[&str] = &[
 /// Classifies chart type from prompt hints (defaults to bar).
 fn classify_chart_type(prompt_lower: &str) -> ChartType {
     if prompt_lower.contains("pie") || prompt_lower.contains("donut") {
-        ChartType::Pie
+        ChartType::Donut
+    } else if prompt_lower.contains("stacked") || prompt_lower.contains("stack") {
+        ChartType::StackedBar
+    } else if prompt_lower.contains("area") {
+        ChartType::Area
     } else if prompt_lower.contains("line") {
         ChartType::Line
     } else if prompt_lower.contains("scatter") {

@@ -30,6 +30,9 @@ impl ChartGlyphRenderer {
             ChartType::Scatter => render_scatter(spec, colors, x, y, w, h),
             ChartType::Heatmap => render_heatmap(spec, colors, x, y, w, h),
             ChartType::Gauge => render_gauge(spec, colors, x, y, w, h),
+            ChartType::Donut => render_donut(spec, colors, x, y, w, h),
+            ChartType::StackedBar => render_stacked_bar(spec, colors, x, y, w, h),
+            ChartType::Area => render_area(spec, colors, x, y, w, h),
         }
     }
 }
@@ -200,10 +203,133 @@ fn render_gauge(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h
         let color = if i % 2 == 0 { c.accent1 } else { c.accent2 };
         let x0 = cx as f64 - r + (r * sweep.cos());
         let y0 = cy as f64 - (r * sweep.sin());
+    svg.push_str(&format!(
+        "  <path d=\"M {} {} A {} {} 0 0 1 {} {}\" fill=\"none\" stroke=\"{}\" stroke-width=\"12\" stroke-linecap=\"round\" />\n",
+        cx as f64 - r, cy as f64, r, r, x0, y0, color
+    ));
+    }
+    svg.push_str("</g>\n");
+    svg
+}
+
+/// Donut chart: pie slices with a wide center hole (accent1/accent2 alternating).
+fn render_donut(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: u32) -> String {
+    let total: f64 = spec.values.iter().sum();
+    if total <= 0.0 {
+        return String::new();
+    }
+    let cx = w / 2;
+    let cy = h / 2;
+    let r = (w.min(h) / 2 - 8) as f64;
+    let hole = (r * 0.55) as u32;
+    let mut angle = -std::f64::consts::FRAC_PI_2;
+
+    let mut svg = format!("<g transform=\"translate({}, {})\">\n", x, y);
+    for (i, v) in spec.values.iter().enumerate() {
+        let sweep = (v / total) * 2.0 * std::f64::consts::PI;
+        let end = angle + sweep;
+        let x0 = cx as f64 + r * angle.cos();
+        let y0 = cy as f64 + r * angle.sin();
+        let x1 = cx as f64 + r * end.cos();
+        let y1 = cy as f64 + r * end.sin();
+        let large = if sweep > std::f64::consts::PI { 1 } else { 0 };
+        let color = if i % 2 == 0 { c.accent1 } else { c.accent2 };
         svg.push_str(&format!(
-            "  <path d=\"M {} {} A {} {} 0 0 1 {} {}\" fill=\"none\" stroke=\"{}\" stroke-width=\"12\" stroke-linecap=\"round\" />\n",
-            cx as f64 - r, cy as f64, r, r, x0, y0, color
+            "  <path d=\"M {} {} L {} {} A {} {} 0 {} 1 {} {} Z\" fill=\"{}\" />\n",
+            cx, cy, x0, y0, r, r, large, x1, y1, color
         ));
+        angle = end;
+    }
+    svg.push_str(&format!(
+        "  <circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"{}\" />\n",
+        cx, cy, hole, c.bg
+    ));
+    svg.push_str("</g>\n");
+    svg
+}
+
+/// Stacked bar chart: each bar is a stack of two segments (accent1 bottom, accent2 top).
+fn render_stacked_bar(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: u32) -> String {
+    let n = spec.values.len() as u32;
+    let max = max_value(&spec.values);
+    let plot_w = w - 16;
+    let plot_h = h - 32;
+    let bar_w = (plot_w / n).min(48);
+    let gap = ((plot_w - bar_w * n) / (n + 1)).max(2);
+
+    let mut svg = format!(
+        "<g transform=\"translate({}, {})\">\n  <line x1=\"8\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#374151\" stroke-width=\"1\" />\n",
+        x, y, plot_h, plot_w, plot_h
+    );
+    for (i, v) in spec.values.iter().enumerate() {
+        let frac = v / max;
+        let bx = 8 + i as u32 * (bar_w + gap) + gap;
+        let h1 = (frac * plot_h as f64 * 0.6).max(2.0) as u32;
+        let h2 = (frac * plot_h as f64 * 0.4).max(2.0) as u32;
+        let y1 = plot_h - h1;
+        let y2 = y1 - h2;
+        svg.push_str(&format!(
+            "  <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" rx=\"2\" fill=\"{}\" />\n",
+            bx, y1, bar_w, h1, c.accent1
+        ));
+        svg.push_str(&format!(
+            "  <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" rx=\"2\" fill=\"{}\" />\n",
+            bx, y2, bar_w, h2, c.accent2
+        ));
+        svg.push_str(&format!(
+            "  <text x=\"{}\" y=\"{}\" font-size=\"10\" fill=\"{}\" text-anchor=\"middle\">{}</text>\n",
+            bx + bar_w / 2,
+            plot_h + 16,
+            c.text,
+            spec.labels.get(i).map(|s| s.as_str()).unwrap_or("")
+        ));
+    }
+    svg.push_str("</g>\n");
+    svg
+}
+
+/// Area chart: line with filled area beneath (accent1 stroke, accent2 translucent fill).
+fn render_area(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: u32) -> String {
+    let n = spec.values.len() as u32;
+    let max = max_value(&spec.values);
+    let plot_w = w - 16;
+    let plot_h = h - 16;
+
+    let mut line = String::new();
+    let mut area = String::new();
+    for (i, v) in spec.values.iter().enumerate() {
+        let px = 8 + if n == 1 { 0 } else { i as u32 * (plot_w - 16) / (n - 1) };
+        let py = plot_h - ((v / max) * plot_h as f64) as u32;
+        line.push_str(&format!("{},{} ", px, py));
+        area.push_str(&format!("{},{} ", px, py));
+    }
+
+    let mut svg = format!(
+        "<g transform=\"translate({}, {})\">\n  <polyline points=\"8,{} {}\" fill=\"none\" stroke=\"#374151\" stroke-width=\"1\" />\n",
+        x, y, plot_h, if n > 0 { line.split(' ').last().unwrap_or("") } else { "" }
+    );
+    svg.push_str(&format!(
+        "  <polygon points=\"8,{} {} 8,{}\" fill=\"{}\" fill-opacity=\"0.25\" />\n",
+        plot_h, area.trim(), plot_h, c.accent2
+    ));
+    svg.push_str(&format!(
+        "  <polyline points=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"2\" />\n",
+        line.trim(), c.accent1
+    ));
+    for (i, v) in spec.values.iter().enumerate() {
+        let px = 8 + if n == 1 { 0 } else { i as u32 * (plot_w - 16) / (n - 1) };
+        let py = plot_h - ((v / max) * plot_h as f64) as u32;
+        svg.push_str(&format!(
+            "  <circle cx=\"{}\" cy=\"{}\" r=\"4\" fill=\"{}\" />\n",
+            px, py, c.accent2
+        ));
+        svg.push_str(&format!(
+            "  <text x=\"{}\" y=\"{}\" font-size=\"10\" fill=\"#9CA3AF\" text-anchor=\"middle\">{}</text>\n",
+            px,
+            plot_h + 14,
+            spec.labels.get(i).map(|s| s.as_str()).unwrap_or("")
+        ));
+        let _ = v;
     }
     svg.push_str("</g>\n");
     svg

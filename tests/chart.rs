@@ -57,6 +57,9 @@ fn all_six_glyphs_render_svg() {
         ChartType::Scatter,
         ChartType::Heatmap,
         ChartType::Gauge,
+        ChartType::Donut,
+        ChartType::StackedBar,
+        ChartType::Area,
     ] {
         let mut s = spec.clone();
         s.chart_type = ct;
