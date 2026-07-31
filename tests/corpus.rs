@@ -106,6 +106,7 @@ fn every_layout_instantiates_a_valid_spec() {
             subtitle: None,
             metrics: vec![],
             sections: vec![],
+            chart: None,
             footer_note: None,
         };
         let max_metrics = seed.constraints.max_metrics.unwrap_or(4);

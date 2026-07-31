@@ -74,6 +74,27 @@ pub struct SectionSpec {
     pub description: String,
 }
 
+/// Supported chart glyph types (native SVG, no external chart libs)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChartType {
+    Bar,
+    Line,
+    Pie,
+    Scatter,
+    Heatmap,
+    Gauge,
+}
+
+/// Chart data bound to a chart slot (labels/values come from the prompt,
+/// never invented)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChartSpec {
+    pub chart_type: ChartType,
+    pub labels: Vec<String>,
+    pub values: Vec<f64>,
+    pub unit: Option<String>,
+}
+
 /// Master Strongly-Typed Infographic Layout Specification (Latent MCP Target)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InfographicLayoutSpec {
@@ -84,6 +105,7 @@ pub struct InfographicLayoutSpec {
     pub subtitle: Option<String>,
     pub metrics: Vec<MetricCardSpec>,
     pub sections: Vec<SectionSpec>,
+    pub chart: Option<ChartSpec>,
     pub footer_note: Option<String>,
 }
 
@@ -308,6 +330,7 @@ impl InfographicIntentRouter {
 
         let metrics = extract_metrics(&prompt_lower);
         let sections = build_sections(step_count, &layout, prompt);
+        let chart = extract_chart(&prompt_lower);
 
         let mut spec = InfographicLayoutSpec {
             layout_type: layout.layout_type,
@@ -317,6 +340,7 @@ impl InfographicIntentRouter {
             subtitle: Some("Generated via katSVG Neuro-Symbolic Vector Layout Engine".to_string()),
             metrics,
             sections,
+            chart,
             footer_note: Some("katSVG Engine • MIT License".to_string()),
         };
 
@@ -444,6 +468,93 @@ const STOP_WORDS: &[&str] = &[
     "make", "mode", "style", "theme", "color", "using", "use", "generate", "an",
 ];
 
+/// Classifies chart type from prompt hints (defaults to bar).
+fn classify_chart_type(prompt_lower: &str) -> ChartType {
+    if prompt_lower.contains("pie") || prompt_lower.contains("donut") {
+        ChartType::Pie
+    } else if prompt_lower.contains("line") {
+        ChartType::Line
+    } else if prompt_lower.contains("scatter") {
+        ChartType::Scatter
+    } else if prompt_lower.contains("heatmap") || prompt_lower.contains("heat") {
+        ChartType::Heatmap
+    } else if prompt_lower.contains("gauge") || prompt_lower.contains("speedometer") {
+        ChartType::Gauge
+    } else {
+        ChartType::Bar
+    }
+}
+
+/// Extracts a chart series only when the prompt explicitly asks for a chart
+/// AND supplies `label: value` pairs. Values are parsed as numbers; nothing is
+/// invented. Returns `None` when the prompt has no explicit chart intent.
+fn extract_chart(prompt_lower: &str) -> Option<ChartSpec> {
+    let wants_chart = contains_any(prompt_lower, &["chart", "graph", "plot", "viz"]) || classify_chart_type(prompt_lower) != ChartType::Bar;
+    if !wants_chart {
+        return None;
+    }
+
+    let mut labels = Vec::new();
+    let mut values = Vec::new();
+
+    for part in prompt_lower.split([',', ';', '|']) {
+        let part = part.trim();
+        // Find the LAST colon in the segment whose value is numeric, so leading
+        // intent phrases like "show a bar chart: Q1: 10" bind label "q1" → 10.
+        let mut best: Option<(usize, f64)> = None;
+        for (idx, _) in part.match_indices(':') {
+            let val = part[idx + 1..].trim();
+            if let Some(num) = parse_number_prefix(val) {
+                best = Some((idx, num));
+            }
+        }
+        if let Some((idx, num)) = best {
+            let label = part[..idx]
+                .split_whitespace()
+                .next_back()
+                .unwrap_or("")
+                .trim_matches(|c: char| !c.is_alphanumeric())
+                .to_string();
+            if !label.is_empty() {
+                labels.push(label);
+                values.push(num);
+            }
+        }
+    }
+
+    if values.len() < 2 {
+        return None;
+    }
+
+    // Clamp to corpus max glyphs (deterministic, no invention).
+    let max_points = 16;
+    labels.truncate(max_points);
+    values.truncate(max_points);
+
+    Some(ChartSpec {
+        chart_type: classify_chart_type(prompt_lower),
+        labels,
+        values,
+        unit: None,
+    })
+}
+
+/// Parses the leading numeric portion of a string ("124m", "28%", "15" → Some).
+fn parse_number_prefix(s: &str) -> Option<f64> {
+    let mut end = 0;
+    for (i, c) in s.char_indices() {
+        if c.is_ascii_digit() || c == '.' || c == '-' {
+            end = i + c.len_utf8();
+        } else {
+            break;
+        }
+    }
+    if end == 0 {
+        return None;
+    }
+    s[..end].parse::<f64>().ok()
+}
+
 /// Splits the prompt into meaningful words (stop words removed, deduped).
 fn significant_words(prompt: &str) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
@@ -492,8 +603,10 @@ pub struct SVGVectorRenderer;
 impl SVGVectorRenderer {
     /// Renders clean, standalone SVG vector string from InfographicLayoutSpec in < 10ms
     pub fn render(spec: &InfographicLayoutSpec) -> String {
+        use crate::chart::{ChartColors, ChartGlyphRenderer};
+
         let (width, height) = spec.aspect_ratio.dimensions();
-        let (bg, card_bg, accent1, _accent2, text_color) = spec.theme.colors();
+        let (bg, card_bg, accent1, accent2, text_color) = spec.theme.colors();
 
         let mut svg = String::with_capacity(8192);
 
@@ -523,17 +636,29 @@ impl SVGVectorRenderer {
             accent1, spec.title, sub
         ));
 
-        let card_w = if spec.metrics.is_empty() { 0 } else { (width - 80 - (spec.metrics.len() as u32 - 1) * 16) / spec.metrics.len() as u32 };
-        for (i, m) in spec.metrics.iter().enumerate() {
-            let x = 40 + i as u32 * (card_w + 16);
-            let lbl_upper = m.label.to_uppercase();
-            svg.push_str(&format!(
-                "<g transform=\"translate({}, 130)\">\n  <rect width=\"{}\" height=\"80\" rx=\"12\" fill=\"{}\" stroke=\"#1F2937\" stroke-width=\"1\" />\n  <text x=\"16\" y=\"36\" class=\"metric-val\">{}</text>\n  <text x=\"16\" y=\"58\" class=\"metric-lbl\">{}</text>\n</g>\n",
-                x, card_w, card_bg, m.value, lbl_upper
-            ));
+        // Metric band (y=130..210)
+        if !spec.metrics.is_empty() {
+            let card_w = (width - 80 - (spec.metrics.len() as u32 - 1) * 16) / spec.metrics.len() as u32;
+            for (i, m) in spec.metrics.iter().enumerate() {
+                let x = 40 + i as u32 * (card_w + 16);
+                let lbl_upper = m.label.to_uppercase();
+                svg.push_str(&format!(
+                    "<g transform=\"translate({}, 130)\">\n  <rect width=\"{}\" height=\"80\" rx=\"12\" fill=\"{}\" stroke=\"#1F2937\" stroke-width=\"1\" />\n  <text x=\"16\" y=\"36\" class=\"metric-val\">{}</text>\n  <text x=\"16\" y=\"58\" class=\"metric-lbl\">{}</text>\n</g>\n",
+                    x, card_w, card_bg, m.value, lbl_upper
+                ));
+            }
         }
 
-        let start_y = 240;
+        // Chart region (y=240..500) when a chart is bound
+        if let Some(chart) = &spec.chart {
+            let colors = ChartColors { bg, card_bg, accent1, accent2, text: text_color };
+            let chart_w = width - 80;
+            let chart_h = 260;
+            svg.push_str(&ChartGlyphRenderer::render(chart, &colors, 40, 240, chart_w, chart_h));
+        }
+
+        // Section cards (start after chart/metrics block)
+        let start_y = if spec.chart.is_some() { 520 } else { 240 };
         let sec_h = 100;
         let card_w_full = width - 80;
         for (i, s) in spec.sections.iter().enumerate() {
