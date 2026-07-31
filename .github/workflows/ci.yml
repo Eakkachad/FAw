@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test + Bench + Artifact validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build (release)
+        run: cargo build --release --bin katsvg
+
+      - name: Test
+        run: cargo test --release
+
+      - name: GOAT bench gate
+        run: cargo run --release --bin bench -- 30
+
+      - name: Generate sample artifacts
+        run: |
+          ./target/release/katsvg "Build a 4-step AI Agent Deployment Timeline in dark mode" --out ./ci_artifacts
+          ./target/release/katsvg "Show a bar chart: Q1: 10, Q2: 25, Q3: 15, Q4: 30 in navy banner" --out ./ci_artifacts_chart
+          file ./ci_artifacts/* ./ci_artifacts_chart/*
+
+      - name: Validate artifact signatures
+        run: |
+          test "$(head -c 8 ./ci_artifacts/infographic.png | xxd -p)" = "89504e470d0a1a0a" && echo "PNG signature OK"
+          test "$(head -c 8 ./ci_artifacts/infographic.pdf)" = "%PDF-1.7" && echo "PDF header OK"
+          test "$(head -c 4 ./ci_artifacts/infographic.pptx)" = "PK\x03\x04" && echo "PPTX ZIP OK"
+          test "$(head -c 4 ./ci_artifacts/infographic.svg)" = "<svg" && echo "SVG OK"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: katsvg-ci-artifacts
+          path: ci_artifacts*/
+
+  release:
+    name: Package release binary
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release
+        run: cargo build --release --bin katsvg
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/release/katsvg dist/katsvg-linux-x86_64
+          ./target/release/katsvg "Q3 KPI dashboard: revenue: 124M, users: 12M in navy" --out dist/sample
+          cp dist/sample/* dist/
+          ls -la dist/
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/katsvg-linux-x86_64
+            dist/sample/*
