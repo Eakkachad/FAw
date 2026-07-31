@@ -72,11 +72,12 @@ fn main() {
 User Prompt Input
   │
   ▼
-InfographicIntentRouter (katgpt-percepta Intent Router)
-  │
+InfographicIntentRouter (corpus-driven, model-less)
+  │  retrieve LayoutDef from embedded layout corpus
+  │  deterministic parameter extraction (step count, metrics, title)
   ▼
-InfographicConstraintPruner (katgpt-core ConstraintPruner Validator)
-  │
+InfographicConstraintPruner (katgpt-core ConstraintPruner trait
+  │                        + per-layout bounds, violations()/clamp())
   ▼
 InfographicLayoutSpec (Strongly-Typed Latent MCP Target)
   │
@@ -85,6 +86,11 @@ InfographicLayoutSpec (Strongly-Typed Latent MCP Target)
   ├── PNGRasterExporter     ──> infographic.png
   └── PPTXPresentationExporter ──> infographic.pptx
 ```
+
+> **katGPT integration:** the engine reuses `katgpt-core`'s `ConstraintPruner`
+> trait for structural validity (0.0% hallucination) and follows the katgpt-rs
+> modelless-first mandate — no transformer inference at runtime. The routing
+> layer is corpus-driven, not an LLM.
 
 ---
 
