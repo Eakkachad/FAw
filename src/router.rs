@@ -701,9 +701,11 @@ impl SVGVectorRenderer {
             for (i, m) in spec.metrics.iter().enumerate() {
                 let x = 40 + i as u32 * (card_w + 16);
                 let lbl_upper = m.label.to_uppercase();
+                let icon_svg = crate::icon::IconRenderer::render(&m.icon, accent2);
+                let icon_x = card_w as i64 - 32;
                 svg.push_str(&format!(
-                    "<g transform=\"translate({}, 130)\">\n  <rect width=\"{}\" height=\"80\" rx=\"12\" fill=\"{}\" stroke=\"#1F2937\" stroke-width=\"1\" />\n  <text x=\"16\" y=\"36\" class=\"metric-val\">{}</text>\n  <text x=\"16\" y=\"58\" class=\"metric-lbl\">{}</text>\n</g>\n",
-                    x, card_w, card_bg, m.value, lbl_upper
+                    "<g transform=\"translate({}, 130)\">\n  <rect width=\"{}\" height=\"80\" rx=\"12\" fill=\"{}\" stroke=\"#1F2937\" stroke-width=\"1\" />\n  <text x=\"16\" y=\"36\" class=\"metric-val\">{}</text>\n  <text x=\"16\" y=\"58\" class=\"metric-lbl\">{}</text>\n  <g transform=\"translate({}, 8)\">{}</g>\n</g>\n",
+                    x, card_w, card_bg, m.value, lbl_upper, icon_x, icon_svg
                 ));
             }
         }
