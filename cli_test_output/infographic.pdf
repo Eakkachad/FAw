@@ -1,0 +1,167 @@
+%PDF-1.7
+%öäü×
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kinds [/PDF] /Count 1 /Kids [3 0 R] >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 800 1131] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2253 >>
+stream
+0.043 0.059 0.098 rg
+0 0 800 1131 re f
+0.231 0.510 0.965 rg
+40 1061.0 8 48 re f
+BT
+/F1 22 Tf
+0.976 0.980 0.984 rg
+68 1087.0 Td
+(GENERATE A 4-STEP AI AGENT DEPLOYMENT) Tj
+ET
+BT
+/F1 11 Tf
+0.6 0.6 0.6 rg
+68 1069.0 Td
+(Generated via katSVG Neuro-Symbolic Vector Layout Engine) Tj
+ET
+0.067 0.094 0.153 rg
+40.0 941.0 229.3 80 re f
+0.12 0.16 0.22 RG 1 w
+40.0 941.0 229.3 80 re S
+BT
+/F1 18 Tf
+0.231 0.510 0.965 rg
+56.0 985.0 Td
+(< 15 ms) Tj
+ET
+BT
+/F1 9 Tf
+0.6 0.6 0.6 rg
+56.0 963.0 Td
+(INFERENCE LATENCY) Tj
+ET
+0.067 0.094 0.153 rg
+285.3 941.0 229.3 80 re f
+0.12 0.16 0.22 RG 1 w
+285.3 941.0 229.3 80 re S
+BT
+/F1 18 Tf
+0.231 0.510 0.965 rg
+301.3 985.0 Td
+(< 48 MB) Tj
+ET
+BT
+/F1 9 Tf
+0.6 0.6 0.6 rg
+301.3 963.0 Td
+(RAM FOOTPRINT) Tj
+ET
+0.067 0.094 0.153 rg
+530.7 941.0 229.3 80 re f
+0.12 0.16 0.22 RG 1 w
+530.7 941.0 229.3 80 re S
+BT
+/F1 18 Tf
+0.231 0.510 0.965 rg
+546.7 985.0 Td
+(0.0%) Tj
+ET
+BT
+/F1 9 Tf
+0.6 0.6 0.6 rg
+546.7 963.0 Td
+(HALLUCINATION RATE) Tj
+ET
+0.231 0.510 0.965 RG 2 w [4 4] 0 d
+72 856.0 m 72 795.0 l S [] 0 d
+0.067 0.094 0.153 rg
+40.0 811.0 720.0 90.0 re f
+0.12 0.16 0.22 RG 1 w
+40.0 811.0 720.0 90.0 re S
+BT
+/F1 13 Tf
+0.976 0.980 0.984 rg
+104.0 865.0 Td
+(1. Intent Understanding) Tj
+ET
+BT
+/F1 10 Tf
+0.6 0.6 0.6 rg
+104.0 843.0 Td
+(Classifies layout domain & parameters) Tj
+ET
+0.231 0.510 0.965 RG 2 w [4 4] 0 d
+72 750.0 m 72 689.0 l S [] 0 d
+0.067 0.094 0.153 rg
+40.0 705.0 720.0 90.0 re f
+0.12 0.16 0.22 RG 1 w
+40.0 705.0 720.0 90.0 re S
+BT
+/F1 13 Tf
+0.976 0.980 0.984 rg
+104.0 759.0 Td
+(2. Constraint Pruning) Tj
+ET
+BT
+/F1 10 Tf
+0.6 0.6 0.6 rg
+104.0 737.0 Td
+(ConstraintPruner enforces zero-hallucination schema) Tj
+ET
+0.231 0.510 0.965 RG 2 w [4 4] 0 d
+72 644.0 m 72 583.0 l S [] 0 d
+0.067 0.094 0.153 rg
+40.0 599.0 720.0 90.0 re f
+0.12 0.16 0.22 RG 1 w
+40.0 599.0 720.0 90.0 re S
+BT
+/F1 13 Tf
+0.976 0.980 0.984 rg
+104.0 653.0 Td
+(3. Latent MCP Routing) Tj
+ET
+BT
+/F1 10 Tf
+0.6 0.6 0.6 rg
+104.0 631.0 Td
+(Dispatches typed InfographicLayoutSpec structure) Tj
+ET
+0.067 0.094 0.153 rg
+40.0 493.0 720.0 90.0 re f
+0.12 0.16 0.22 RG 1 w
+40.0 493.0 720.0 90.0 re S
+BT
+/F1 13 Tf
+0.976 0.980 0.984 rg
+104.0 547.0 Td
+(4. Vector Rendering) Tj
+ET
+BT
+/F1 10 Tf
+0.6 0.6 0.6 rg
+104.0 525.0 Td
+(Rust compositor generates clean SVG / PDF / PNG output) Tj
+ET
+
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000135 00000 n 
+0000000262 00000 n 
+0000002567 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2637
+%%EOF
