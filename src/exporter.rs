@@ -319,6 +319,15 @@ impl PPTXPresentationExporter {
         slide_xml.push_str(&format!("<a:t>{}</a:t></a:r>\n", escape_xml(&spec.title)));
         slide_xml.push_str("        </a:p></p:txBody>\n      </p:sp>\n");
 
+        // Chart shapes (native PPTX vectors, D2 parity)
+        if let Some(chart) = &spec.chart {
+            let (_bg, _cbg, a1, a2, tx) = spec.theme.colors();
+            let shapes = crate::chart_pptx::chart_shapes_pptx(
+                chart, 40, 240, 720, 260, a1, a2, tx,
+            );
+            slide_xml.push_str(&shapes);
+        }
+
         for (i, s) in spec.sections.iter().enumerate() {
             let y_off = 1828800 + i as u64 * 1143000;
             slide_xml.push_str("      <p:sp>\n");

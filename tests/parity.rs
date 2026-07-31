@@ -20,6 +20,10 @@ fn pptx_contains_chart_shape_xml() {
     let spec = chart_spec();
     let pptx = katsvg_engine::PPTXPresentationExporter::generate_pptx_bytes(&spec);
     assert!(pptx.windows(b"[Content_Types].xml".len()).any(|w| w == b"[Content_Types].xml"), "pptx package valid");
+    // Chart emits native shapes: at least one bar/rect shape (id >= 100) beyond title/sections
+    let txt = String::from_utf8_lossy(&pptx);
+    assert!(txt.contains("<p:sp>"), "pptx must contain shapes");
+    assert!(txt.contains("prstGeom prst=\"rect\""), "chart shapes must use rect geometry");
 }
 
 #[test]
