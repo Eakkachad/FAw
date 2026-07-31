@@ -9,7 +9,7 @@
   "$defs": {
     "paletteType": {
       "type": "string",
-      "enum": ["TechDark", "FinancialNavy", "VibrantCoral", "AcademicWarm"],
+      "enum": ["TechDark", "FinancialNavy", "VibrantCoral", "AcademicWarm", "OceanBreeze", "SunsetGlow", "ForestMint", "Monochrome"],
       "description": "MUST match katsvg_engine::router::PaletteTheme"
     },
     "hexColor": {

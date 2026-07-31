@@ -27,16 +27,32 @@ pub enum PaletteTheme {
     FinancialNavy,
     VibrantCoral,
     AcademicWarm,
+    OceanBreeze,
+    SunsetGlow,
+    ForestMint,
+    Monochrome,
 }
 
 impl PaletteTheme {
-    pub fn colors(&self) -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
+    /// Hardcoded fallback colors (used only if the corpus registry is empty).
+    pub fn fallback_colors(&self) -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
         match self {
             PaletteTheme::TechDark => ("#0B0F19", "#111827", "#3B82F6", "#10B981", "#F9FAFB"),
             PaletteTheme::FinancialNavy => ("#0F172A", "#1E293B", "#6366F1", "#06B6D4", "#F8FAFC"),
             PaletteTheme::VibrantCoral => ("#18181B", "#27272A", "#F43F5E", "#FB923C", "#FAFAFA"),
             PaletteTheme::AcademicWarm => ("#1C1917", "#292524", "#F59E0B", "#10B981", "#F5F5F4"),
+            PaletteTheme::OceanBreeze => ("#0B2447", "#19376D", "#19A7CE", "#A5F1E9", "#F9FAFB"),
+            PaletteTheme::SunsetGlow => ("#1E1B2E", "#2B2642", "#FF6B6B", "#FFD93D", "#FEF9EF"),
+            PaletteTheme::ForestMint => ("#0F1F17", "#1C3A2E", "#34D399", "#A3E635", "#ECFDF5"),
+            PaletteTheme::Monochrome => ("#0A0A0A", "#1F1F1F", "#FFFFFF", "#A3A3A3", "#FAFAFA"),
         }
+    }
+
+    /// Theme color roles resolved through the embedded palette corpus.
+    pub fn colors(&self) -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
+        static REGISTRY: std::sync::OnceLock<crate::palette::PaletteRegistry> = std::sync::OnceLock::new();
+        let c = REGISTRY.get_or_init(crate::palette::PaletteRegistry::new).colors(*self);
+        (c.bg, c.card_bg, c.accent1, c.accent2, c.text)
     }
 }
 
@@ -420,6 +436,14 @@ fn classify_layout_type(prompt_lower: &str) -> LayoutType {
 fn classify_theme(prompt_lower: &str) -> PaletteTheme {
     if contains_any(prompt_lower, &["navy", "finance", "bank"]) {
         PaletteTheme::FinancialNavy
+    } else if contains_any(prompt_lower, &["ocean", "sea", "aqua", "breeze", "sky"]) {
+        PaletteTheme::OceanBreeze
+    } else if contains_any(prompt_lower, &["sunset", "sun", "glow", "violet", "purple"]) {
+        PaletteTheme::SunsetGlow
+    } else if contains_any(prompt_lower, &["forest", "green", "mint", "nature", "eco"]) {
+        PaletteTheme::ForestMint
+    } else if contains_any(prompt_lower, &["mono", "grayscale", "grey", "gray", "bw", "minimal", "black and white"]) {
+        PaletteTheme::Monochrome
     } else if contains_any(prompt_lower, &["warm", "coral", "creative"]) {
         PaletteTheme::VibrantCoral
     } else if contains_any(prompt_lower, &["academic", "paper", "gold"]) {

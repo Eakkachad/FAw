@@ -1,0 +1,18 @@
+{
+  "id": "academic_warm",
+  "paletteType": "AcademicWarm",
+  "description": "Warm neutral with amber + emerald for academic/paper documents.",
+  "roles": {
+    "bg": "#1C1917",
+    "cardBg": "#292524",
+    "accent1": "#F59E0B",
+    "accent2": "#10B981",
+    "text": "#F5F5F4"
+  },
+  "contrastPairs": [
+    { "foreground": "#F5F5F4", "background": "#1C1917", "ratio": 14.8 },
+    { "foreground": "#F59E0B", "background": "#1C1917", "ratio": 7.1 }
+  ],
+  "colorBlindSafe": true,
+  "darkMode": true
+}

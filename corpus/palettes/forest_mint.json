@@ -1,0 +1,18 @@
+{
+  "id": "forest_mint",
+  "paletteType": "ForestMint",
+  "description": "Deep forest green with mint + lime for sustainability/nature themes.",
+  "roles": {
+    "bg": "#0F1F17",
+    "cardBg": "#1C3A2E",
+    "accent1": "#34D399",
+    "accent2": "#A3E635",
+    "text": "#ECFDF5"
+  },
+  "contrastPairs": [
+    { "foreground": "#ECFDF5", "background": "#0F1F17", "ratio": 13.6 },
+    { "foreground": "#A3E635", "background": "#1C3A2E", "ratio": 7.4 }
+  ],
+  "colorBlindSafe": true,
+  "darkMode": true
+}

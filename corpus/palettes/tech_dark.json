@@ -1,0 +1,18 @@
+{
+  "id": "tech_dark",
+  "paletteType": "TechDark",
+  "description": "Dark slate with electric blue + emerald accents for tech/system themes.",
+  "roles": {
+    "bg": "#0B0F19",
+    "cardBg": "#111827",
+    "accent1": "#3B82F6",
+    "accent2": "#10B981",
+    "text": "#F9FAFB"
+  },
+  "contrastPairs": [
+    { "foreground": "#F9FAFB", "background": "#0B0F19", "ratio": 15.4 },
+    { "foreground": "#3B82F6", "background": "#0B0F19", "ratio": 4.8 }
+  ],
+  "colorBlindSafe": true,
+  "darkMode": true
+}

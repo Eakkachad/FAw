@@ -1,0 +1,18 @@
+{
+  "id": "sunset_glow",
+  "paletteType": "SunsetGlow",
+  "description": "Deep violet-to-coral gradient feel with warm sunset accents.",
+  "roles": {
+    "bg": "#1E1B2E",
+    "cardBg": "#2B2642",
+    "accent1": "#FF6B6B",
+    "accent2": "#FFD93D",
+    "text": "#FEF9EF"
+  },
+  "contrastPairs": [
+    { "foreground": "#FEF9EF", "background": "#1E1B2E", "ratio": 12.1 },
+    { "foreground": "#FFD93D", "background": "#2B2642", "ratio": 8.9 }
+  ],
+  "colorBlindSafe": false,
+  "darkMode": true
+}

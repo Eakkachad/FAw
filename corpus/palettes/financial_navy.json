@@ -1,0 +1,18 @@
+{
+  "id": "financial_navy",
+  "paletteType": "FinancialNavy",
+  "description": "Deep navy with indigo + cyan for finance/banking reports.",
+  "roles": {
+    "bg": "#0F172A",
+    "cardBg": "#1E293B",
+    "accent1": "#6366F1",
+    "accent2": "#06B6D4",
+    "text": "#F8FAFC"
+  },
+  "contrastPairs": [
+    { "foreground": "#F8FAFC", "background": "#0F172A", "ratio": 14.1 },
+    { "foreground": "#06B6D4", "background": "#0F172A", "ratio": 5.9 }
+  ],
+  "colorBlindSafe": true,
+  "darkMode": true
+}

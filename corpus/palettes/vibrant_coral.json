@@ -1,0 +1,18 @@
+{
+  "id": "vibrant_coral",
+  "paletteType": "VibrantCoral",
+  "description": "High-energy rose + orange for creative/campaign visuals.",
+  "roles": {
+    "bg": "#18181B",
+    "cardBg": "#27272A",
+    "accent1": "#F43F5E",
+    "accent2": "#FB923C",
+    "text": "#FAFAFA"
+  },
+  "contrastPairs": [
+    { "foreground": "#FAFAFA", "background": "#18181B", "ratio": 13.2 },
+    { "foreground": "#F43F5E", "background": "#18181B", "ratio": 4.5 }
+  ],
+  "colorBlindSafe": false,
+  "darkMode": true
+}

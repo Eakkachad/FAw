@@ -1,0 +1,18 @@
+{
+  "id": "ocean_breeze",
+  "paletteType": "OceanBreeze",
+  "description": "Light ocean blue with aqua accents for clean/corporate reports.",
+  "roles": {
+    "bg": "#0B2447",
+    "cardBg": "#19376D",
+    "accent1": "#19A7CE",
+    "accent2": "#A5F1E9",
+    "text": "#F9FAFB"
+  },
+  "contrastPairs": [
+    { "foreground": "#F9FAFB", "background": "#0B2447", "ratio": 12.9 },
+    { "foreground": "#A5F1E9", "background": "#19376D", "ratio": 8.3 }
+  ],
+  "colorBlindSafe": true,
+  "darkMode": true
+}
