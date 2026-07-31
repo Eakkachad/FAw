@@ -1,0 +1,20 @@
+{
+  "id": "hero_quote",
+  "layoutType": "MindmapHierarchy",
+  "description": "Bold hero statement poster with a large headline and a single supporting quote/call-to-action region.",
+  "tags": ["hero", "quote", "statement", "motivational", "poster", "headline", "slogan", "cta", "banner quote"],
+  "regions": [
+    { "id": "headline", "x": 0.06, "y": 0.12, "width": 0.88, "height": 0.4, "slot": "title" },
+    { "id": "subheadline", "x": 0.1, "y": 0.55, "width": 0.8, "height": 0.2, "slot": "subtitle" },
+    { "id": "footer", "x": 0.05, "y": 0.95, "width": 0.9, "height": 0.03, "slot": "footer" }
+  ],
+  "constraints": {
+    "maxMetrics": 0,
+    "minMetrics": 0,
+    "maxSections": 0,
+    "minSections": 0,
+    "maxTitleLength": 80,
+    "maxFooterLength": 64,
+    "allowedAspectRatios": ["A4Poster", "Banner16_9", "Square1_1"]
+  }
+}

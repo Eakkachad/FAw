@@ -12,7 +12,7 @@ fn router() -> InfographicIntentRouter {
 fn corpus_is_loaded_and_retrievable() {
     let r = router();
     assert!(!r.corpus().is_empty(), "corpus must be non-empty");
-    assert_eq!(r.corpus().len(), 6, "expected 6 embedded layouts");
+    assert_eq!(r.corpus().len(), 10, "expected 10 embedded layouts");
 }
 
 #[test]
@@ -26,6 +26,28 @@ fn routing_is_corpus_driven_not_hardcoded() {
 
     let compare = r.parse_and_route("Compare GPT-4 vs Gemini feature matrix");
     assert_eq!(compare.layout_type, LayoutType::ComparisonGrid);
+}
+
+#[test]
+fn new_archetypes_route_to_layouts() {
+    let r = router();
+    // These should still resolve to a valid corpus layout (no panic), and the
+    // matching archetype should be picked via tags/description.
+    let hero = r.parse_and_route("Create a motivational hero quote poster");
+    assert!(r.corpus().iter().any(|l| l.id == "hero_quote"));
+    assert_eq!(hero.layout_type, LayoutType::MindmapHierarchy);
+
+    let pricing = r.parse_and_route("Show SaaS pricing plans comparison table");
+    assert!(r.corpus().iter().any(|l| l.id == "pricing_table"));
+    assert_eq!(pricing.layout_type, LayoutType::ComparisonGrid);
+
+    let flow = r.parse_and_route("Design a decision flowchart with branches");
+    assert!(r.corpus().iter().any(|l| l.id == "decision_flow"));
+    assert_eq!(flow.layout_type, LayoutType::ProcessTimeline);
+
+    let snapshot = r.parse_and_route("Show a KPI snapshot overview with metrics");
+    assert!(r.corpus().iter().any(|l| l.id == "kpi_snapshot"));
+    assert_eq!(snapshot.layout_type, LayoutType::StatisticalDashboard);
 }
 
 #[test]

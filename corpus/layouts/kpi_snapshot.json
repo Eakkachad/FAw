@@ -1,0 +1,22 @@
+{
+  "id": "kpi_snapshot",
+  "layoutType": "StatisticalDashboard",
+  "description": "Compact single-screen KPI snapshot with big-number metric cards and a status ring/gauge.",
+  "tags": ["kpi", "snapshot", "overview", "status", "metrics", "summary", "health", "score", "single view", "pulse"],
+  "regions": [
+    { "id": "header", "x": 0.05, "y": 0.04, "width": 0.9, "height": 0.07, "slot": "title" },
+    { "id": "metrics", "x": 0.05, "y": 0.14, "width": 0.9, "height": 0.3, "slot": "metrics" },
+    { "id": "gauge", "x": 0.05, "y": 0.5, "width": 0.45, "height": 0.4, "slot": "chart" },
+    { "id": "footer", "x": 0.05, "y": 0.95, "width": 0.9, "height": 0.03, "slot": "footer" }
+  ],
+  "constraints": {
+    "maxMetrics": 6,
+    "minMetrics": 1,
+    "maxSections": 0,
+    "minSections": 0,
+    "maxTitleLength": 80,
+    "maxFooterLength": 64,
+    "allowedAspectRatios": ["A4Poster", "Square1_1"],
+    "maxGlyphsPerChart": 6
+  }
+}

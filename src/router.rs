@@ -181,13 +181,17 @@ pub struct LayoutDef {
 
 /// Embedded layout corpus (closed vocabulary). Loaded at router construction;
 /// guarantees deterministic retrieval without runtime filesystem access.
-pub const CORPUS_FILES: [&str; 6] = [
+pub const CORPUS_FILES: [&str; 10] = [
     include_str!("../corpus/layouts/process_timeline.json"),
     include_str!("../corpus/layouts/statistical_dashboard.json"),
     include_str!("../corpus/layouts/comparison_grid.json"),
     include_str!("../corpus/layouts/mindmap_hierarchy.json"),
     include_str!("../corpus/layouts/chart_dashboard.json"),
     include_str!("../corpus/layouts/org_hierarchy.json"),
+    include_str!("../corpus/layouts/hero_quote.json"),
+    include_str!("../corpus/layouts/pricing_table.json"),
+    include_str!("../corpus/layouts/decision_flow.json"),
+    include_str!("../corpus/layouts/kpi_snapshot.json"),
 ];
 
 /// Load and parse the embedded corpus.

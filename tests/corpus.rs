@@ -53,8 +53,8 @@ fn corpus_paths() -> Vec<(String, std::path::PathBuf)> {
 }
 
 #[test]
-fn corpus_has_six_seed_layouts() {
-    assert_eq!(corpus_paths().len(), 6, "expected 6 seed layouts");
+fn corpus_has_ten_seed_layouts() {
+    assert_eq!(corpus_paths().len(), 10, "expected 10 seed layouts");
 }
 
 #[test]
