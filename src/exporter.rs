@@ -63,9 +63,17 @@ impl PDFVectorExporter {
         }
 
         let card_y = height_pt as f32 - 190.0;
-        let card_w = (width_pt as f32 - 80.0 - (spec.metrics.len() as f32 - 1.0) * 16.0) / spec.metrics.len() as f32;
+        let card_w = if spec.metrics.is_empty() {
+            0.0
+        } else {
+            (width_pt as f32 - 80.0 - (spec.metrics.len() as f32 - 1.0) * 16.0) / spec.metrics.len() as f32
+        };
         for (i, m) in spec.metrics.iter().enumerate() {
             let x = 40.0 + i as f32 * (card_w + 16.0);
+
+            if card_w <= 0.0 {
+                continue;
+            }
 
             content_stream.push_str(&format!(
                 "{:.3} {:.3} {:.3} rg\n{:.1} {:.1} {:.1} 80 re f\n",
@@ -187,8 +195,15 @@ impl PNGRasterExporter {
         fill_rect(&mut px, w, 40, 50, 48, 98, (acc_r, acc_g, acc_b));
 
         // Metric cards (mirrors SVG cards at y=130, height=80)
-        let card_w = (width - 80 - (spec.metrics.len() as u32 - 1) * 16) / spec.metrics.len() as u32;
+        let card_w = if spec.metrics.is_empty() {
+            0
+        } else {
+            (width - 80 - (spec.metrics.len() as u32 - 1) * 16) / spec.metrics.len() as u32
+        };
         for (i, m) in spec.metrics.iter().enumerate() {
+            if card_w == 0 {
+                break;
+            }
             let x = 40 + i as u32 * (card_w + 16);
             fill_rect(&mut px, w, x as usize, 130, (x + card_w) as usize, 210, (card_r, card_g, card_b));
             // value placeholder bar in accent (no text rasterization in v1)

@@ -1,4 +1,12 @@
 //! Infographic Latent MCP Router & Vector Renderer Module (`katSVG Router`).
+//!
+//! Corpus-driven, model-less routing (canonical plan §3, §4):
+//! - Intent features are classified from the prompt (closed vocabulary).
+//! - A `LayoutDef` is **retrieved** from the embedded layout corpus (never hardcoded).
+//! - Parameters (title, step count, metric key/value pairs) are **extracted** from the
+//!   prompt deterministically — nothing is invented.
+//! - `InfographicConstraintPruner` enforces structural bounds; violations are clamped,
+//!   never patched with fabricated data (0.0% hallucination).
 
 use katgpt_core::traits::ConstraintPruner;
 use serde::{Deserialize, Serialize};
@@ -79,7 +87,80 @@ pub struct InfographicLayoutSpec {
     pub footer_note: Option<String>,
 }
 
-/// Constraint Pruner enforcing zero-hallucination layout boundaries
+// ── Layout Corpus Types (serde mirrors of `schemas/layout_corpus.schema.json`) ──
+
+/// A region in unit coordinates (0.0..=1.0 relative to canvas).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegionDef {
+    pub id: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub slot: String,
+}
+
+/// Structural bounds enforced by the ConstraintPruner.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutConstraints {
+    #[serde(default = "default_max_metrics")]
+    pub max_metrics: usize,
+    #[serde(default)]
+    pub min_metrics: usize,
+    #[serde(default = "default_max_sections")]
+    pub max_sections: usize,
+    #[serde(default)]
+    pub min_sections: usize,
+    #[serde(default = "default_max_title")]
+    pub max_title_length: usize,
+    #[serde(default)]
+    pub max_footer_length: usize,
+    #[serde(default)]
+    pub allowed_aspect_ratios: Vec<AspectRatio>,
+}
+
+fn default_max_metrics() -> usize { 4 }
+fn default_max_sections() -> usize { 8 }
+fn default_max_title() -> usize { 80 }
+
+/// A layout archetype retrieved from the corpus.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutDef {
+    pub id: String,
+    pub layout_type: LayoutType,
+    pub description: Option<String>,
+    pub regions: Vec<RegionDef>,
+    pub constraints: LayoutConstraints,
+}
+
+/// Embedded layout corpus (closed vocabulary). Loaded at router construction;
+/// guarantees deterministic retrieval without runtime filesystem access.
+pub const CORPUS_FILES: [&str; 6] = [
+    include_str!("../corpus/layouts/process_timeline.json"),
+    include_str!("../corpus/layouts/statistical_dashboard.json"),
+    include_str!("../corpus/layouts/comparison_grid.json"),
+    include_str!("../corpus/layouts/mindmap_hierarchy.json"),
+    include_str!("../corpus/layouts/chart_dashboard.json"),
+    include_str!("../corpus/layouts/org_hierarchy.json"),
+];
+
+/// Load and parse the embedded corpus.
+pub fn load_corpus() -> Vec<LayoutDef> {
+    CORPUS_FILES
+        .iter()
+        .filter_map(|raw| serde_json::from_str(raw).ok())
+        .collect()
+}
+
+// ── Constraint Pruner (real structural validation) ───────────────────────────
+
+/// Constraint Pruner enforcing zero-hallucination layout boundaries.
+///
+/// Enforces per-layout corpus constraints. Violations are reported; the router
+/// clamps deterministically rather than inventing data.
 pub struct InfographicConstraintPruner {
     pub max_sections: usize,
     pub max_metrics: usize,
@@ -89,9 +170,67 @@ pub struct InfographicConstraintPruner {
 impl Default for InfographicConstraintPruner {
     fn default() -> Self {
         Self {
-            max_sections: 8,
-            max_metrics: 4,
-            max_title_len: 80,
+            max_sections: default_max_sections(),
+            max_metrics: default_max_metrics(),
+            max_title_len: default_max_title(),
+        }
+    }
+}
+
+impl InfographicConstraintPruner {
+    /// Validates a spec against the layout's structural constraints.
+    /// Returns the list of violated bounds (empty = valid).
+    pub fn violations(&self, spec: &InfographicLayoutSpec, c: &LayoutConstraints) -> Vec<String> {
+        let mut out = Vec::new();
+
+        if spec.metrics.len() > c.max_metrics {
+            out.push(format!(
+                "metrics {} > max {}",
+                spec.metrics.len(),
+                c.max_metrics
+            ));
+        }
+        if spec.sections.len() > c.max_sections {
+            out.push(format!(
+                "sections {} > max {}",
+                spec.sections.len(),
+                c.max_sections
+            ));
+        }
+        if spec.sections.len() < c.min_sections {
+            out.push(format!(
+                "sections {} < min {}",
+                spec.sections.len(),
+                c.min_sections
+            ));
+        }
+        if spec.title.len() > c.max_title_length {
+            out.push(format!("title len {} > max {}", spec.title.len(), c.max_title_length));
+        }
+        if !c.allowed_aspect_ratios.is_empty() && !c.allowed_aspect_ratios.contains(&spec.aspect_ratio) {
+            out.push(format!("aspect {:?} not allowed for layout", spec.aspect_ratio));
+        }
+        if let Some(footer) = &spec.footer_note {
+            if c.max_footer_length > 0 && footer.len() > c.max_footer_length {
+                out.push(format!("footer len {} > max {}", footer.len(), c.max_footer_length));
+            }
+        }
+        out
+    }
+
+    /// Deterministically clamps a spec into the layout's valid bounds.
+    /// Never invents data: only truncates / falls back.
+    pub fn clamp(&self, spec: &mut InfographicLayoutSpec, c: &LayoutConstraints) {
+        spec.metrics.truncate(c.max_metrics);
+        spec.sections.truncate(c.max_sections);
+        spec.title.truncate(c.max_title_length);
+        if !c.allowed_aspect_ratios.is_empty() && !c.allowed_aspect_ratios.contains(&spec.aspect_ratio) {
+            spec.aspect_ratio = c.allowed_aspect_ratios[0];
+        }
+        if let Some(footer) = &mut spec.footer_note {
+            if c.max_footer_length > 0 {
+                footer.truncate(c.max_footer_length);
+            }
         }
     }
 }
@@ -101,94 +240,250 @@ impl ConstraintPruner for InfographicConstraintPruner {
         if parent_tokens.len() > self.max_sections * 4 {
             return false;
         }
-        token_idx < 1000
+        token_idx < self.max_metrics * self.max_sections * 16 + 256
     }
 }
 
-/// High-Speed Intent Router adapting katGPT concepts
+// ── Intent Router (corpus-driven) ────────────────────────────────────────────
+
+/// High-Speed Intent Router adapting katGPT concepts.
 pub struct InfographicIntentRouter {
     pub pruner: InfographicConstraintPruner,
+    corpus: Vec<LayoutDef>,
 }
 
 impl InfographicIntentRouter {
     pub fn new() -> Self {
         Self {
             pruner: InfographicConstraintPruner::default(),
+            corpus: load_corpus(),
         }
     }
 
-    /// Parse raw text prompt into a validated InfographicLayoutSpec in < 15ms
+    /// Inject a custom corpus (e.g., from tests or runtime config).
+    pub fn with_corpus(corpus: Vec<LayoutDef>) -> Self {
+        Self {
+            pruner: InfographicConstraintPruner::default(),
+            corpus,
+        }
+    }
+
+    pub fn corpus(&self) -> &[LayoutDef] {
+        &self.corpus
+    }
+
+    /// Parse raw text prompt into a validated InfographicLayoutSpec in < 15ms.
+    ///
+    /// Pipeline: classify intent → retrieve best `LayoutDef` from corpus →
+    /// extract parameters from prompt → compose → clamp (0.0% hallucination).
     pub fn parse_and_route(&self, prompt: &str) -> InfographicLayoutSpec {
         let prompt_lower = prompt.to_lowercase();
 
-        // 1. Layout Type Intent Classification
-        let layout_type = if prompt_lower.contains("timeline") || prompt_lower.contains("step") || prompt_lower.contains("roadmap") || prompt_lower.contains("process") {
-            LayoutType::ProcessTimeline
-        } else if prompt_lower.contains("dashboard") || prompt_lower.contains("stat") || prompt_lower.contains("metric") || prompt_lower.contains("kpi") {
-            LayoutType::StatisticalDashboard
-        } else if prompt_lower.contains("compare") || prompt_lower.contains("vs") || prompt_lower.contains("feature") || prompt_lower.contains("matrix") {
-            LayoutType::ComparisonGrid
-        } else {
-            LayoutType::MindmapHierarchy
-        };
+        let layout_type = classify_layout_type(&prompt_lower);
+        let theme = classify_theme(&prompt_lower);
+        let aspect_ratio = classify_aspect_ratio(&prompt_lower);
 
-        // 2. Palette Theme Routing
-        let theme = if prompt_lower.contains("navy") || prompt_lower.contains("finance") || prompt_lower.contains("bank") {
-            PaletteTheme::FinancialNavy
-        } else if prompt_lower.contains("warm") || prompt_lower.contains("coral") || prompt_lower.contains("creative") {
-            PaletteTheme::VibrantCoral
-        } else if prompt_lower.contains("academic") || prompt_lower.contains("paper") || prompt_lower.contains("gold") {
-            PaletteTheme::AcademicWarm
-        } else {
-            PaletteTheme::TechDark
-        };
+        // Retrieve the best matching layout definition from the corpus.
+        let layout = self.retrieve(layout_type, aspect_ratio).cloned().unwrap_or_else(|| {
+            load_corpus().pop().unwrap_or_else(|| LayoutDef {
+                id: "default_timeline".to_string(),
+                layout_type: LayoutType::ProcessTimeline,
+                description: None,
+                regions: vec![],
+                constraints: LayoutConstraints {
+                    max_metrics: default_max_metrics(),
+                    min_metrics: 0,
+                    max_sections: default_max_sections(),
+                    min_sections: 1,
+                    max_title_length: default_max_title(),
+                    max_footer_length: 0,
+                    allowed_aspect_ratios: vec![AspectRatio::A4Poster, AspectRatio::Banner16_9, AspectRatio::Square1_1],
+                },
+            })
+        });
 
-        // 3. Aspect Ratio Selection
-        let aspect_ratio = if prompt_lower.contains("banner") || prompt_lower.contains("header") || prompt_lower.contains("landscape") {
-            AspectRatio::Banner16_9
-        } else if prompt_lower.contains("square") || prompt_lower.contains("post") {
-            AspectRatio::Square1_1
-        } else {
-            AspectRatio::A4Poster
-        };
+        // Deterministic parameter extraction from the prompt (no invention).
+        let title = extract_title(prompt).unwrap_or_else(|| "INFOGRAPHIC".to_string());
+        let step_count = extract_step_count(&prompt_lower).unwrap_or(layout.constraints.min_sections.max(1));
 
-        // 4. Entity Extraction & Section Assembly
-        let title = extract_title(&prompt_lower).unwrap_or_else(|| "SYSTEM ARCHITECTURE INFOGRAPHIC".to_string());
-        let subtitle = Some("Generated via katSVG Neuro-Symbolic Vector Layout Engine".to_string());
+        let metrics = extract_metrics(&prompt_lower);
+        let sections = build_sections(step_count, &layout, prompt);
 
-        let metrics = vec![
-            MetricCardSpec { label: "Inference Latency".to_string(), value: "< 15 ms".to_string(), icon: "zap".to_string() },
-            MetricCardSpec { label: "RAM Footprint".to_string(), value: "< 48 MB".to_string(), icon: "cpu".to_string() },
-            MetricCardSpec { label: "Hallucination Rate".to_string(), value: "0.0%".to_string(), icon: "shield-check".to_string() },
-        ];
-
-        let sections = vec![
-            SectionSpec { step_number: 1, title: "Intent Understanding".to_string(), description: "Classifies layout domain & parameters".to_string() },
-            SectionSpec { step_number: 2, title: "Constraint Pruning".to_string(), description: "ConstraintPruner enforces zero-hallucination schema".to_string() },
-            SectionSpec { step_number: 3, title: "Latent MCP Routing".to_string(), description: "Dispatches typed InfographicLayoutSpec structure".to_string() },
-            SectionSpec { step_number: 4, title: "Vector Rendering".to_string(), description: "Rust compositor generates clean SVG / PDF / PNG output".to_string() },
-        ];
-
-        InfographicLayoutSpec {
-            layout_type,
+        let mut spec = InfographicLayoutSpec {
+            layout_type: layout.layout_type,
             theme,
             aspect_ratio,
             title,
-            subtitle,
+            subtitle: Some("Generated via katSVG Neuro-Symbolic Vector Layout Engine".to_string()),
             metrics,
             sections,
             footer_note: Some("katSVG Engine • MIT License".to_string()),
-        }
+        };
+
+        // Enforce corpus bounds deterministically.
+        self.pruner.clamp(&mut spec, &layout.constraints);
+        spec
+    }
+
+    /// Rank corpus layouts: layout-type match dominates, aspect fit breaks ties.
+    /// Deterministic (stable order; returns None only on empty corpus).
+    fn retrieve(&self, layout_type: LayoutType, aspect: AspectRatio) -> Option<&LayoutDef> {
+        self.corpus
+            .iter()
+            .max_by(|a, b| score(a, layout_type, aspect).cmp(&score(b, layout_type, aspect)))
+            .filter(|_| !self.corpus.is_empty())
     }
 }
 
+fn score(l: &LayoutDef, layout_type: LayoutType, aspect: AspectRatio) -> u32 {
+    let mut s = 0;
+    if l.layout_type == layout_type {
+        s += 10;
+    }
+    if l.constraints.allowed_aspect_ratios.contains(&aspect) {
+        s += 2;
+    }
+    s
+}
+
+fn classify_layout_type(prompt_lower: &str) -> LayoutType {
+    if contains_any(prompt_lower, &["timeline", "step", "roadmap", "process", "phase"]) {
+        LayoutType::ProcessTimeline
+    } else if contains_any(prompt_lower, &["dashboard", "stat", "metric", "kpi", "chart"]) {
+        LayoutType::StatisticalDashboard
+    } else if contains_any(prompt_lower, &["compare", "vs", "feature", "matrix", "grid"]) {
+        LayoutType::ComparisonGrid
+    } else {
+        LayoutType::MindmapHierarchy
+    }
+}
+
+fn classify_theme(prompt_lower: &str) -> PaletteTheme {
+    if contains_any(prompt_lower, &["navy", "finance", "bank"]) {
+        PaletteTheme::FinancialNavy
+    } else if contains_any(prompt_lower, &["warm", "coral", "creative"]) {
+        PaletteTheme::VibrantCoral
+    } else if contains_any(prompt_lower, &["academic", "paper", "gold"]) {
+        PaletteTheme::AcademicWarm
+    } else {
+        PaletteTheme::TechDark
+    }
+}
+
+fn classify_aspect_ratio(prompt_lower: &str) -> AspectRatio {
+    if contains_any(prompt_lower, &["banner", "header", "landscape"]) {
+        AspectRatio::Banner16_9
+    } else if contains_any(prompt_lower, &["square", "post"]) {
+        AspectRatio::Square1_1
+    } else {
+        AspectRatio::A4Poster
+    }
+}
+
+fn contains_any(haystack: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|n| haystack.contains(n))
+}
+
 fn extract_title(prompt: &str) -> Option<String> {
-    if prompt.is_empty() { return None; }
+    if prompt.is_empty() {
+        return None;
+    }
     let words: Vec<&str> = prompt.split_whitespace().take(6).collect();
-    if words.is_empty() { return None; }
+    if words.is_empty() {
+        return None;
+    }
     let mut title = words.join(" ");
     title.make_ascii_uppercase();
     Some(title)
+}
+
+/// Extracts an explicit step count from patterns like "4-step", "4 step", "4 phases".
+fn extract_step_count(prompt_lower: &str) -> Option<usize> {
+    let bytes = prompt_lower.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_digit() {
+            let start = i;
+            while i < bytes.len() && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
+            let n: usize = prompt_lower[start..i].parse().ok()?;
+            let rest: String = prompt_lower[i..].chars().take(12).collect();
+            if n >= 1 && (rest.contains("step") || rest.contains("phase") || rest.starts_with("-step")) {
+                return Some(n);
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Extracts metric key/value pairs like "latency: 15ms, ram: 48mb, accuracy: 95%".
+/// Only data present in the prompt is bound — nothing is invented.
+fn extract_metrics(prompt_lower: &str) -> Vec<MetricCardSpec> {
+    let mut out = Vec::new();
+    for part in prompt_lower.split([',', ';', '|']) {
+        let part = part.trim();
+        if let Some((k, v)) = part.split_once(':') {
+            let key = k.trim().to_string();
+            let value = v.trim().to_string();
+            if key.len() > 0 && value.len() > 0 && value.chars().next().is_some_and(|c| c.is_ascii_digit() || c == '<') {
+                out.push(MetricCardSpec {
+                    label: key.to_uppercase(),
+                    value,
+                    icon: "zap".to_string(),
+                });
+            }
+        }
+    }
+    out
+}
+
+const STOP_WORDS: &[&str] = &[
+    "the", "a", "an", "in", "on", "for", "with", "of", "and", "to", "build", "create",
+    "make", "mode", "style", "theme", "color", "using", "use", "generate", "an",
+];
+
+/// Splits the prompt into meaningful words (stop words removed, deduped).
+fn significant_words(prompt: &str) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for w in prompt.split_whitespace() {
+        let lower = w.to_lowercase();
+        if STOP_WORDS.contains(&lower.as_str()) {
+            continue;
+        }
+        if seen.insert(lower.clone()) {
+            out.push(lower);
+        }
+    }
+    out
+}
+
+/// Deterministic section assembly. If the prompt provides an explicit step count,
+/// that many sections are built; titles derive from prompt words, padded with
+/// generic phase labels only when the prompt has insufficient words.
+fn build_sections(count: usize, layout: &LayoutDef, prompt: &str) -> Vec<SectionSpec> {
+    let words = significant_words(prompt);
+    let mut out = Vec::new();
+    for i in 0..count {
+        let title = words
+            .get(i)
+            .map(|w| w.to_uppercase())
+            .unwrap_or_else(|| format!("PHASE {}", i + 1));
+        let description = format!(
+            "Step {} of {} — {} layout",
+            i + 1,
+            layout.id.replace('_', " "),
+            format!("{:?}", layout.layout_type)
+        );
+        out.push(SectionSpec {
+            step_number: i + 1,
+            title,
+            description,
+        });
+    }
+    out
 }
 
 /// Native SVG Vector Layout Renderer Engine
@@ -228,7 +523,7 @@ impl SVGVectorRenderer {
             accent1, spec.title, sub
         ));
 
-        let card_w = (width - 80 - (spec.metrics.len() as u32 - 1) * 16) / spec.metrics.len() as u32;
+        let card_w = if spec.metrics.is_empty() { 0 } else { (width - 80 - (spec.metrics.len() as u32 - 1) * 16) / spec.metrics.len() as u32 };
         for (i, m) in spec.metrics.iter().enumerate() {
             let x = 40 + i as u32 * (card_w + 16);
             let lbl_upper = m.label.to_uppercase();
