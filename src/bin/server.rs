@@ -53,10 +53,20 @@ fn handle(mut stream: TcpStream, router: &InfographicIntentRouter) {
             let params = parse_query(query);
             let prompt = params.get("prompt").cloned().unwrap_or_default();
             let format = params.get("format").cloned().unwrap_or_else(|| "svg".into());
-            match router.parse_and_route(&prompt) {
-                spec => match render_bytes(&spec, &format) {
+            let spec = router.parse_and_route(&prompt);
+            match format.as_str() {
+                "all" => {
+                    // JSON envelope: base64 of all 4 formats + SVG preview
+                    let all = all_formats_json(&spec);
+                    (status_ok(), all.into_bytes())
+                }
+                "preview" => {
+                    let page = preview_page(&spec);
+                    (status_ok(), page.into_bytes())
+                }
+                f => match render_bytes(&spec, f) {
                     Some(bytes) => (status_ok(), bytes),
-                    None => (status_bad(), format!("bad format: {format}").into_bytes()),
+                    None => (status_bad(), format!("bad format: {f}").into_bytes()),
                 },
             }
         }
@@ -68,7 +78,11 @@ fn handle(mut stream: TcpStream, router: &InfographicIntentRouter) {
             .get("format")
             .cloned()
             .unwrap_or_else(|| "svg".into());
-        content_type(&format)
+        match format.as_str() {
+            "all" => "application/json",
+            "preview" => "text/html; charset=utf-8",
+            f => content_type(f),
+        }
     } else {
         "text/html; charset=utf-8"
     };
@@ -91,6 +105,61 @@ fn render_bytes(spec: &katsvg_engine::InfographicLayoutSpec, format: &str) -> Op
         "pptx" => Some(katsvg_engine::PPTXPresentationExporter::generate_pptx_bytes(spec)),
         _ => None,
     }
+}
+
+fn b64(data: &[u8]) -> String {
+    const TABLE: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = *chunk.get(1).unwrap_or(&0) as u32;
+        let b2 = *chunk.get(2).unwrap_or(&0) as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(TABLE[(n >> 18) as usize & 63] as char);
+        out.push(TABLE[(n >> 12) as usize & 63] as char);
+        if chunk.len() > 1 {
+            out.push(TABLE[(n >> 6) as usize & 63] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(TABLE[n as usize & 63] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
+}
+
+/// JSON envelope with all 4 formats base64-encoded + SVG for inline preview.
+fn all_formats_json(spec: &katsvg_engine::InfographicLayoutSpec) -> String {
+    let svg = katsvg_engine::SVGVectorRenderer::render(spec);
+    let pdf = katsvg_engine::PDFVectorExporter::generate_pdf_bytes(spec);
+    let png = katsvg_engine::PNGRasterExporter::generate_png_bytes(spec);
+    let pptx = katsvg_engine::PPTXPresentationExporter::generate_pptx_bytes(spec);
+    serde_json::json!({
+        "spec": spec,
+        "svg_b64": b64(svg.as_bytes()),
+        "pdf_b64": b64(&pdf),
+        "png_b64": b64(&png),
+        "pptx_b64": b64(&pptx),
+        "svg_preview": svg,
+    })
+    .to_string()
+}
+
+/// HTML preview page embedding the SVG inline + download links.
+fn preview_page(spec: &katsvg_engine::InfographicLayoutSpec) -> String {
+    let svg = katsvg_engine::SVGVectorRenderer::render(spec);
+    format!(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>katSVG preview</title></head>\
+         <body style=\"font-family:system-ui;background:#0B0F19;color:#eee;padding:24px\">\
+         <h2>katSVG — {}</h2>\
+         <div>{}</div>\
+         <p><a href=\"/render?prompt=.\">back</a></p></body></html>",
+        spec.title,
+        svg
+    )
 }
 
 fn parse_query(q: &str) -> std::collections::HashMap<String, String> {
