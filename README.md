@@ -10,11 +10,12 @@
 
 | Metric | Measured Benchmark |
 | :--- | :--- |
-| **Intent Parsing Latency** | **0.026 - 0.150 ms** |
+| **Intent Parsing Latency** | **p50 0.004 ms / p99 0.011 ms** (GOAT harness, `cargo run --release --bin bench`) |
 | **SVG Vector Render Time** | **0.022 - 0.045 ms** |
-| **Multi-Format Export (SVG+PDF+PNG+PPTX)** | **~ 19.6 - 37.4 ms** |
+| **Multi-Format Export (SVG+PDF+PNG+PPTX)** | **p50 2.85 ms / p99 5.35 ms** (GOAT harness) |
 | **RAM Footprint** | **< 3.2 MB Total** |
 | **Structural Hallucination** | **0.0% (`ConstraintPruner` Verified)** |
+| **Byte Determinism** | **PASS** (identical prompt ⇒ identical spec/SVG/PNG/PPTX/PDF) |
 
 ---
 
