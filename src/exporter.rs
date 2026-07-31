@@ -174,9 +174,9 @@ impl PDFVectorExporter {
 pub struct PNGRasterExporter;
 
 impl PNGRasterExporter {
-    /// Rasterizes the geometric layout of `spec` into a valid PNG byte buffer.
-    /// Text is intentionally not rasterized in v1 (vector outputs carry text);
-    /// this keeps the pixel path dependency-free of font rasterizers.
+    /// Rasterizes the layout of `spec` into a valid PNG byte buffer, including
+    /// readable text (title, metric values, section titles) via the embedded
+    /// Inter font rasterizer (`text.rs`).
     pub fn generate_png_bytes(spec: &InfographicLayoutSpec) -> Vec<u8> {
         let (width, height) = spec.aspect_ratio.dimensions();
         let w = width as usize;
@@ -191,8 +191,16 @@ impl PNGRasterExporter {
         let mut px = vec![bg_r, bg_g, bg_b];
         px = px.repeat(w * h);
 
+        let renderer = crate::text::TextRenderer::new();
+
         // Title accent bar (mirrors SVG translate(40,50) rect 8x48)
         fill_rect(&mut px, w, 40, 50, 48, 98, (acc_r, acc_g, acc_b));
+
+        // Title + subtitle text
+        renderer.draw_text(&mut px, w, h, 60.0, 78.0, 28.0, (text_r, text_g, text_b), &spec.title);
+        if let Some(sub) = &spec.subtitle {
+            renderer.draw_text(&mut px, w, h, 60.0, 100.0, 14.0, (154, 163, 175), sub);
+        }
 
         // Metric cards (mirrors SVG cards at y=130, height=80)
         let card_w = if spec.metrics.is_empty() {
@@ -206,9 +214,9 @@ impl PNGRasterExporter {
             }
             let x = 40 + i as u32 * (card_w + 16);
             fill_rect(&mut px, w, x as usize, 130, (x + card_w) as usize, 210, (card_r, card_g, card_b));
-            // value placeholder bar in accent (no text rasterization in v1)
-            fill_rect(&mut px, w, (x + 16) as usize, 148, (x + card_w - 16) as usize, 162, (acc_r, acc_g, acc_b));
-            let _ = m;
+            // metric value + label (real text now, P5)
+            renderer.draw_text(&mut px, w, h, (x + 16) as f32, 172.0, 24.0, (acc_r, acc_g, acc_b), &m.value);
+            renderer.draw_text(&mut px, w, h, (x + 16) as f32, 194.0, 11.0, (154, 163, 175), &m.label.to_uppercase());
         }
 
         // Section cards + step connectors (mirrors SVG at start_y=240, sec_h=100)
@@ -224,11 +232,12 @@ impl PNGRasterExporter {
             }
 
             fill_rect(&mut px, w, 40, y, w - 40, y + sec_h, (card_r, card_g, card_b));
-            // step number circle (no text rasterization in v1)
-            fill_rect(&mut px, w, 22, y + 26, 42, y + 46, (acc_r, acc_g, acc_b));
-            // title bar placeholder
-            fill_rect(&mut px, w, 64, y + 26, w - 64, y + 32, (text_r, text_g, text_b));
-            let _ = s;
+            // step number circle + text
+            fill_rect(&mut px, w, 16, y + 26, 46, y + 46, (acc_r, acc_g, acc_b));
+            renderer.draw_text(&mut px, w, h, (24.5) as f32, y as f32 + 44.0, 13.0, (bg_r, bg_g, bg_b), &s.step_number.to_string());
+            // title + description
+            renderer.draw_text(&mut px, w, h, 60.0, y as f32 + 38.0, 16.0, (text_r, text_g, text_b), &s.title);
+            renderer.draw_text(&mut px, w, h, 60.0, y as f32 + 60.0, 12.0, (154, 163, 175), &s.description);
         }
 
         let mut out = Vec::with_capacity(px.len() / 3 + 1024);
