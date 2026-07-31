@@ -92,7 +92,28 @@ impl PDFVectorExporter {
             content_stream.push_str(&format!("{:.1} {:.1} Td\n({}) Tj\nET\n", x + 16.0, card_y + 22.0, sanitize_pdf_str(&m.label.to_uppercase())));
         }
 
-        let start_y = height_pt as f32 - 320.0;
+        // Chart region (SVG y 240..500 → PDF bottom-left y = height-500, h=260) — D3
+        if let Some(chart) = &spec.chart {
+            let (_bgc, _cbc, a1_hex, a2_hex, _t_hex) = spec.theme.colors();
+            let (a1r, a1g, a1b) = hex_to_rgb(a1_hex);
+            let (a2r, a2g, a2b) = hex_to_rgb(a2_hex);
+            crate::chart_pdf::chart_ops_pdf(
+                chart,
+                &mut content_stream,
+                40.0,
+                height_pt as f32 - 500.0,
+                width_pt as f32 - 80.0,
+                260.0,
+                (a1r, a1g, a1b),
+                (a2r, a2g, a2b),
+            );
+        }
+
+        let start_y = if spec.chart.is_some() {
+            height_pt as f32 - 620.0
+        } else {
+            height_pt as f32 - 320.0
+        };
         let sec_h = 90.0;
         let sec_w = width_pt as f32 - 80.0;
 

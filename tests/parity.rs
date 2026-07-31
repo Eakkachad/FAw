@@ -32,6 +32,8 @@ fn pdf_with_chart_is_valid_pdf17() {
     let pdf = katsvg_engine::PDFVectorExporter::generate_pdf_bytes(&spec);
     assert_eq!(&pdf[..8], b"%PDF-1.7");
     assert!(pdf.windows(b"%%EOF".len()).any(|w| w == b"%%EOF"));
+    // Chart draws vector primitives: expect at least 1 fill operator for bars
+    assert!(pdf.windows(b" re f".len()).any(|w| w == b" re f"), "PDF must contain vector fill ops for chart");
 }
 
 #[test]
