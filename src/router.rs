@@ -156,6 +156,8 @@ pub struct LayoutDef {
     pub description: Option<String>,
     pub regions: Vec<RegionDef>,
     pub constraints: LayoutConstraints,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 /// Embedded layout corpus (closed vocabulary). Loaded at router construction;
@@ -272,6 +274,7 @@ impl ConstraintPruner for InfographicConstraintPruner {
 pub struct InfographicIntentRouter {
     pub pruner: InfographicConstraintPruner,
     corpus: Vec<LayoutDef>,
+    retriever: Box<dyn crate::retrieval::RetrievalPipeline>,
 }
 
 impl InfographicIntentRouter {
@@ -279,6 +282,7 @@ impl InfographicIntentRouter {
         Self {
             pruner: InfographicConstraintPruner::default(),
             corpus: load_corpus(),
+            retriever: crate::retrieval::default_retriever(),
         }
     }
 
@@ -287,7 +291,18 @@ impl InfographicIntentRouter {
         Self {
             pruner: InfographicConstraintPruner::default(),
             corpus,
+            retriever: crate::retrieval::default_retriever(),
         }
+    }
+
+    /// Swap the retrieval backend (e.g., Tag baseline vs embedding).
+    pub fn with_retriever(mut self, retriever: Box<dyn crate::retrieval::RetrievalPipeline>) -> Self {
+        self.retriever = retriever;
+        self
+    }
+
+    pub fn retriever_name(&self) -> &str {
+        self.retriever.name()
     }
 
     pub fn corpus(&self) -> &[LayoutDef] {
@@ -301,13 +316,12 @@ impl InfographicIntentRouter {
     pub fn parse_and_route(&self, prompt: &str) -> InfographicLayoutSpec {
         let prompt_lower = prompt.to_lowercase();
 
-        let layout_type = classify_layout_type(&prompt_lower);
         let theme = classify_theme(&prompt_lower);
         let aspect_ratio = classify_aspect_ratio(&prompt_lower);
 
         // Retrieve the best matching layout definition from the corpus.
-        let layout = self.retrieve(layout_type, aspect_ratio).cloned().unwrap_or_else(|| {
-            load_corpus().pop().unwrap_or_else(|| LayoutDef {
+        let layout = self.retrieve(&prompt_lower, aspect_ratio).cloned().unwrap_or_else(|| {
+            let mut d = load_corpus().pop().unwrap_or_else(|| LayoutDef {
                 id: "default_timeline".to_string(),
                 layout_type: LayoutType::ProcessTimeline,
                 description: None,
@@ -321,7 +335,13 @@ impl InfographicIntentRouter {
                     max_footer_length: 0,
                     allowed_aspect_ratios: vec![AspectRatio::A4Poster, AspectRatio::Banner16_9, AspectRatio::Square1_1],
                 },
-            })
+                tags: vec![],
+            });
+            d.tags = vec![
+                "timeline".into(), "step".into(), "roadmap".into(),
+                "process".into(), "phase".into(), "sequence".into(),
+            ];
+            d
         });
 
         // Deterministic parameter extraction from the prompt (no invention).
@@ -349,26 +369,41 @@ impl InfographicIntentRouter {
         spec
     }
 
-    /// Rank corpus layouts: layout-type match dominates, aspect fit breaks ties.
-    /// Deterministic (stable order; returns None only on empty corpus).
-    fn retrieve(&self, layout_type: LayoutType, aspect: AspectRatio) -> Option<&LayoutDef> {
+    /// Rank corpus layouts via the retrieval pipeline; aspect fit breaks ties.
+    /// Applies an OOD gate: when the best retrieval relevance falls below
+    /// [`RETRIEVAL_THRESHOLD`], fall back to layout-type classification (the
+    /// deterministic refiner). Deterministic in all paths.
+    fn retrieve(&self, prompt_lower: &str, aspect: AspectRatio) -> Option<&LayoutDef> {
+        let mut ranked = self.retriever.retrieve(prompt_lower, &self.corpus);
+        if ranked.is_empty() {
+            return None;
+        }
+
+        if ranked[0].relevance >= RETRIEVAL_THRESHOLD {
+            // In-domain: rank by relevance, aspect fit breaks ties.
+            ranked.sort_by(|a, b| {
+                let fa = self.corpus[a.index].constraints.allowed_aspect_ratios.contains(&aspect) as u8;
+                let fb = self.corpus[b.index].constraints.allowed_aspect_ratios.contains(&aspect) as u8;
+                b.relevance
+                    .partial_cmp(&a.relevance)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then(fb.cmp(&fa))
+            });
+            return ranked.first().map(|r| &self.corpus[r.index]);
+        }
+
+        // OOD refiner: fall back to deterministic layout-type classification.
+        let lt = classify_layout_type(prompt_lower);
         self.corpus
             .iter()
-            .max_by(|a, b| score(a, layout_type, aspect).cmp(&score(b, layout_type, aspect)))
-            .filter(|_| !self.corpus.is_empty())
+            .find(|l| l.layout_type == lt)
+            .or_else(|| self.corpus.first())
     }
 }
 
-fn score(l: &LayoutDef, layout_type: LayoutType, aspect: AspectRatio) -> u32 {
-    let mut s = 0;
-    if l.layout_type == layout_type {
-        s += 10;
-    }
-    if l.constraints.allowed_aspect_ratios.contains(&aspect) {
-        s += 2;
-    }
-    s
-}
+/// OOD gate: below this relevance the retrieval result is treated as
+/// out-of-domain and the deterministic classifier refines the choice.
+const RETRIEVAL_THRESHOLD: f32 = 0.05;
 
 fn classify_layout_type(prompt_lower: &str) -> LayoutType {
     if contains_any(prompt_lower, &["timeline", "step", "roadmap", "process", "phase"]) {

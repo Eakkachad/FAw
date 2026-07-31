@@ -55,6 +55,11 @@
         "id": { "type": "string", "minLength": 1 },
         "layoutType": { "$ref": "#/$defs/layoutType" },
         "description": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "description": "Retrieval keywords used by TagRetriever / EmbeddingRetriever.",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "regions": {
           "type": "array",
           "items": { "$ref": "#/$defs/regionSpec" },

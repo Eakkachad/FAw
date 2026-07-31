@@ -2,6 +2,7 @@
   "id": "statistical_dashboard",
   "layoutType": "StatisticalDashboard",
   "description": "KPI dashboard with a metric-card band and a data/chart region for quantitative summaries.",
+  "tags": ["dashboard", "kpi", "metric", "metrics", "statistics", "stats", "stat", "data", "report", "analytics", "summary"],
   "regions": [
     { "id": "header", "x": 0.05, "y": 0.04, "width": 0.9, "height": 0.07, "slot": "title" },
     { "id": "subheader", "x": 0.05, "y": 0.11, "width": 0.9, "height": 0.04, "slot": "subtitle" },
