@@ -50,3 +50,23 @@ fn all_formats_deterministic_with_chart() {
     );
     assert_eq!(b1, b2, "PPTX with chart must be deterministic");
 }
+
+#[test]
+fn pdf_embeds_type0_font_for_thai_text() {
+    let r = InfographicIntentRouter::new();
+    let spec = r.parse_and_route("สร้างไทม์ไลน์การพัฒนาระบบ");
+    let pdf = katsvg_engine::PDFVectorExporter::generate_pdf_bytes(&spec);
+    assert!(pdf.windows(b"/Subtype /Type0".len()).any(|w| w == b"/Subtype /Type0"), "Type0 font present");
+    assert!(pdf.windows(b"/FontFile2".len()).any(|w| w == b"/FontFile2"), "FontFile2 stream present");
+    // Thai text drawn as CID hex: <HEX> Tj
+    assert!(pdf.windows(b"> Tj".len()).any(|w| w == b"> Tj"), "Thai text emitted as CID hex");
+}
+
+#[test]
+fn pdf_latin_text_stays_literal() {
+    let r = InfographicIntentRouter::new();
+    let spec = r.parse_and_route("Quarterly revenue dashboard in navy");
+    let pdf = katsvg_engine::PDFVectorExporter::generate_pdf_bytes(&spec);
+    assert!(!pdf.windows(b"/Subtype /Type0".len()).any(|w| w == b"/Subtype /Type0"), "ascii-only PDF has no Type0 font");
+    assert!(pdf.windows(b") Tj".len()).any(|w| w == b") Tj"), "latin text stays literal string");
+}

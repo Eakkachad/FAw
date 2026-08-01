@@ -40,6 +40,12 @@ impl PDFVectorExporter {
         let (acc_r, acc_g, acc_b) = hex_to_rgb(accent1_hex);
         let (text_r, text_g, text_b) = hex_to_rgb(text_hex);
 
+        // F2: determine whether we need the embedded Thai (Noto Sans Thai) font.
+        let needs_thai = crate::font::has_non_ascii(&spec.title)
+            || spec.subtitle.as_deref().is_some_and(crate::font::has_non_ascii)
+            || spec.metrics.iter().any(|m| crate::font::has_non_ascii(&m.label) || crate::font::has_non_ascii(&m.value))
+            || spec.sections.iter().any(|s| crate::font::has_non_ascii(&s.title));
+
         let mut content_stream = String::with_capacity(4096);
 
         content_stream.push_str(&format!(
@@ -53,13 +59,10 @@ impl PDFVectorExporter {
             acc_r, acc_g, acc_b, y_top
         ));
 
-        content_stream.push_str("BT\n/F1 22 Tf\n");
-        content_stream.push_str(&format!("{:.3} {:.3} {:.3} rg\n", text_r, text_g, text_b));
-        content_stream.push_str(&format!("68 {:.1} Td\n({}) Tj\nET\n", y_top + 26.0, sanitize_pdf_str(&spec.title)));
+        pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 22.0, text_r, text_g, text_b, 68.0, y_top + 26.0, &spec.title);
 
         if let Some(sub) = &spec.subtitle {
-            content_stream.push_str("BT\n/F1 11 Tf\n0.6 0.6 0.6 rg\n");
-            content_stream.push_str(&format!("68 {:.1} Td\n({}) Tj\nET\n", y_top + 8.0, sanitize_pdf_str(sub)));
+            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 11.0, 0.6, 0.6, 0.6, 68.0, y_top + 8.0, sub);
         }
 
         let card_y = height_pt as f32 - 190.0;
@@ -84,12 +87,9 @@ impl PDFVectorExporter {
                 x, card_y, card_w
             ));
 
-            content_stream.push_str("BT\n/F1 18 Tf\n");
-            content_stream.push_str(&format!("{:.3} {:.3} {:.3} rg\n", acc_r, acc_g, acc_b));
-            content_stream.push_str(&format!("{:.1} {:.1} Td\n({}) Tj\nET\n", x + 16.0, card_y + 44.0, sanitize_pdf_str(&m.value)));
+            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 18.0, acc_r, acc_g, acc_b, x + 16.0, card_y + 44.0, &m.value);
 
-            content_stream.push_str("BT\n/F1 9 Tf\n0.6 0.6 0.6 rg\n");
-            content_stream.push_str(&format!("{:.1} {:.1} Td\n({}) Tj\nET\n", x + 16.0, card_y + 22.0, sanitize_pdf_str(&m.label.to_uppercase())));
+            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 9.0, 0.6, 0.6, 0.6, x + 16.0, card_y + 22.0, &m.label.to_uppercase());
         }
 
         // Chart region (SVG y 240..500 → PDF bottom-left y = height-500, h=260) — D3
@@ -138,12 +138,10 @@ impl PDFVectorExporter {
                 y, sec_w, sec_h
             ));
 
-            content_stream.push_str("BT\n/F1 13 Tf\n");
-            content_stream.push_str(&format!("{:.3} {:.3} {:.3} rg\n", text_r, text_g, text_b));
-            content_stream.push_str(&format!("104.0 {:.1} Td\n({}. {}) Tj\nET\n", y + 54.0, s.step_number, sanitize_pdf_str(&s.title)));
+            let step_label = format!("{}. {}", s.step_number, s.title);
+            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 13.0, text_r, text_g, text_b, 104.0, y + 54.0, &step_label);
 
-            content_stream.push_str("BT\n/F1 10 Tf\n0.6 0.6 0.6 rg\n");
-            content_stream.push_str(&format!("104.0 {:.1} Td\n({}) Tj\nET\n", y + 32.0, sanitize_pdf_str(&s.description)));
+            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 10.0, 0.6, 0.6, 0.6, 104.0, y + 32.0, &s.description);
         }
 
         let stream_bytes = content_stream.as_bytes();
@@ -163,8 +161,9 @@ impl PDFVectorExporter {
 
         xref_offsets.push(pdf.len());
         pdf.extend_from_slice(format!(
-            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {} {}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
-            width_pt, height_pt
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {} {}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R{} >> >> >>\nendobj\n",
+            width_pt, height_pt,
+            if needs_thai { " /F2 6 0 R".to_string() } else { String::new() }
         ).as_bytes());
 
         xref_offsets.push(pdf.len());
@@ -174,6 +173,32 @@ impl PDFVectorExporter {
 
         xref_offsets.push(pdf.len());
         pdf.extend_from_slice(b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n");
+
+        // F2: embedded Noto Sans Thai as a Type0 CID font (only when Thai text present)
+        if needs_thai {
+            xref_offsets.push(pdf.len());
+            pdf.extend_from_slice(format!(
+                "6 0 obj\n<< /Type /Font /Subtype /Type0 /BaseFont /NotoSansThai /Encoding /Identity-H /DescendantFonts [7 0 R] >>\nendobj\n"
+            ).as_bytes());
+
+            xref_offsets.push(pdf.len());
+            pdf.extend_from_slice(format!(
+                "7 0 obj\n<< /Type /Font /Subtype /CIDFontType2 /BaseFont /NotoSansThai /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 8 0 R /CIDToGIDMap /Identity /DW 1000 >>\nendobj\n"
+            ).as_bytes());
+
+            xref_offsets.push(pdf.len());
+            pdf.extend_from_slice(format!(
+                "8 0 obj\n<< /Type /FontDescriptor /FontName /NotoSansThai /Flags 4 /FontBBox [{} {} {} {}] /ItalicAngle 0 /Ascent {} /Descent {} /CapHeight {} /StemV 80 /FontFile2 9 0 R >>\nendobj\n",
+                crate::pdf_font::FONT_BBOX[0], crate::pdf_font::FONT_BBOX[1], crate::pdf_font::FONT_BBOX[2], crate::pdf_font::FONT_BBOX[3],
+                crate::pdf_font::FONT_ASCENT, crate::pdf_font::FONT_DESCENT, crate::pdf_font::FONT_CAPHEIGHT
+            ).as_bytes());
+
+            xref_offsets.push(pdf.len());
+            let font_bytes = crate::pdf_font::font_file_bytes();
+            pdf.extend_from_slice(format!("9 0 obj\n<< /Length {} >>\nstream\n", font_bytes.len()).as_bytes());
+            pdf.extend_from_slice(font_bytes);
+            pdf.extend_from_slice(b"\nendstream\nendobj\n");
+        }
 
         let xref_start = pdf.len();
         pdf.extend_from_slice(format!("xref\n0 {}\n", xref_offsets.len()).as_bytes());
@@ -667,6 +692,43 @@ fn hex_to_rgb_u8(hex: &str) -> (u8, u8, u8) {
 
 fn sanitize_pdf_str(input: &str) -> String {
     input.replace('\\', "\\\\").replace('(', "\\(").replace(')', "\\)")
+}
+
+/// Emit a PDF text-show operator for `text` at `(x, y)` with font `font_ref`,
+/// using the embedded Thai CID font when `text` has non-ASCII glyphs.
+#[allow(clippy::too_many_arguments)]
+fn pdf_emit_text(
+    stream: &mut String,
+    spec: &crate::router::InfographicLayoutSpec,
+    needs_thai: bool,
+    font_ref: &str,
+    size: f32,
+    r: f32,
+    g: f32,
+    b: f32,
+    x: f32,
+    y: f32,
+    text: &str,
+) {
+    stream.push_str("BT\n");
+    if needs_thai && crate::font::has_non_ascii(text) {
+        stream.push_str(&format!("/F2 {size} Tf\n"));
+        stream.push_str(&format!("{:.3} {:.3} {:.3} rg\n", r, g, b));
+        stream.push_str(&format!("{:.1} {:.1} Td\n", x, y));
+        if crate::font::has_non_ascii(text) {
+            let hex = crate::pdf_font::encode_cid_hex(text);
+            stream.push_str(&format!("{hex} Tj\n"));
+        } else {
+            // no cmap → fall back to Latin-safe literal (won't render Thai, won't crash)
+            stream.push_str(&format!("({}) Tj\n", sanitize_pdf_str(text)));
+        }
+    } else {
+        stream.push_str(&format!("/{font_ref} {size} Tf\n"));
+        stream.push_str(&format!("{:.3} {:.3} {:.3} rg\n", r, g, b));
+        stream.push_str(&format!("{:.1} {:.1} Td\n({}) Tj\n", x, y, sanitize_pdf_str(text)));
+    }
+    stream.push_str("ET\n");
+    let _ = spec;
 }
 
 fn escape_xml(input: &str) -> String {

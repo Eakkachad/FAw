@@ -100,8 +100,12 @@ pub fn render_svg_regions(layout: &LayoutDef, spec: &InfographicLayoutSpec) -> O
         width, height, width, height
     ));
     svg.push_str("<defs>\n  <style>\n");
-    svg.push_str(&crate::font::font_style_block());
-    svg.push_str(&format!("    text {{ font-family: {}; }}\n", crate::font::FONT_STACK));
+    let has_thai = crate::font::has_non_ascii(&spec.title)
+        || spec.subtitle.as_deref().is_some_and(crate::font::has_non_ascii)
+        || spec.metrics.iter().any(|m| crate::font::has_non_ascii(&m.label) || crate::font::has_non_ascii(&m.value))
+        || spec.sections.iter().any(|s| crate::font::has_non_ascii(&s.title));
+    svg.push_str(&crate::font::font_style_block(has_thai));
+    svg.push_str(&format!("    text {{ font-family: {}; }}\n", crate::font::font_stack(has_thai)));
     svg.push_str(&format!("    .title {{ font-size: 26px; font-weight: 800; fill: {}; }}\n", text));
     svg.push_str("    .subtitle { font-size: 14px; font-weight: 400; fill: #9CA3AF; }\n");
     svg.push_str(&format!("    .card-title {{ font-size: 15px; font-weight: 600; fill: {}; }}\n", text));
