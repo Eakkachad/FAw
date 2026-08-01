@@ -21,11 +21,9 @@ fn main() {
                 skip_next = false;
                 continue;
             }
-            if args[i] == "--prompt" || args[i] == "-p" {
-                if i + 1 < args.len() {
-                    p = args[i + 1].clone();
-                    skip_next = true;
-                }
+            if matches!(args[i].as_str(), "--prompt" | "-p" | "--out" | "-o" | "--data" | "-d") {
+                // These flags consume the next arg as their value; don't append it to the prompt.
+                skip_next = true;
             } else if !args[i].starts_with('-') {
                 p.push_str(&args[i]);
                 p.push(' ');
