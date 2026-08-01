@@ -126,6 +126,13 @@ pub struct InfographicLayoutSpec {
     pub sections: Vec<SectionSpec>,
     pub chart: Option<ChartSpec>,
     pub footer_note: Option<String>,
+    /// Corpus layout id used to compose this spec (drives RegionCompositor).
+    #[serde(default = "default_layout_id")]
+    pub layout_id: String,
+}
+
+fn default_layout_id() -> String {
+    "process_timeline".to_string()
 }
 
 // ── Layout Corpus Types (serde mirrors of `schemas/layout_corpus.schema.json`) ──
@@ -200,6 +207,11 @@ pub fn load_corpus() -> Vec<LayoutDef> {
         .iter()
         .filter_map(|raw| serde_json::from_str(raw).ok())
         .collect()
+}
+
+/// Find a corpus layout by id (embedded corpus).
+pub fn layout_by_id(id: &str) -> Option<LayoutDef> {
+    load_corpus().into_iter().find(|l| l.id == id)
 }
 
 // ── Constraint Pruner (real structural validation) ───────────────────────────
@@ -394,6 +406,7 @@ impl InfographicIntentRouter {
             sections,
             chart,
             footer_note: Some("katSVG Engine • MIT License".to_string()),
+            layout_id: layout.id.clone(),
         };
 
         // Enforce corpus bounds deterministically.
@@ -773,8 +786,20 @@ fn build_sections(count: usize, layout: &LayoutDef, prompt: &str) -> Vec<Section
 pub struct SVGVectorRenderer;
 
 impl SVGVectorRenderer {
-    /// Renders clean, standalone SVG vector string from InfographicLayoutSpec in < 10ms
+    /// Renders clean, standalone SVG vector string from InfographicLayoutSpec in < 10ms.
+    /// Uses the region compositor when the spec's layout id resolves in the
+    /// corpus; otherwise falls back to the legacy fixed compositor (F1).
     pub fn render(spec: &InfographicLayoutSpec) -> String {
+        if let Some(layout) = layout_by_id(&spec.layout_id) {
+            if let Some(svg) = crate::compositor::render_svg_regions(&layout, spec) {
+                return svg;
+            }
+        }
+        Self::render_legacy(spec)
+    }
+
+    /// Legacy fixed compositor (kept as fallback for unknown/empty regions).
+    pub fn render_legacy(spec: &InfographicLayoutSpec) -> String {
         use crate::chart::{ChartColors, ChartGlyphRenderer};
 
         let (width, height) = spec.aspect_ratio.dimensions();

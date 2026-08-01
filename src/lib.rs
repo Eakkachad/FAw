@@ -4,6 +4,7 @@ pub mod chart;
 pub mod chart_pdf;
 pub mod chart_pptx;
 pub mod chart_raster;
+pub mod compositor;
 pub mod data_binding;
 pub mod font;
 pub mod icon;
