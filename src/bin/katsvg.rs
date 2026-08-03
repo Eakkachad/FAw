@@ -13,6 +13,20 @@ fn main() {
     println!("=== katSVG CLI: Standalone Zero-Hallucination Infographic Generator Engine ===");
     println!("================================================================================\n");
 
+    let data_path = args
+        .iter()
+        .position(|a| a == "--data" || a == "-d")
+        .and_then(|pos| args.get(pos + 1).cloned());
+    let spec_in_path = args
+        .iter()
+        .position(|a| a == "--spec" || a == "-s")
+        .and_then(|pos| args.get(pos + 1).cloned());
+    let emit_spec_path = args
+        .iter()
+        .position(|a| a == "--emit-spec")
+        .and_then(|pos| args.get(pos + 1).cloned());
+
+    // Prompt construction skips value-taking flags.
     let prompt = if args.len() > 1 {
         let mut p = String::new();
         let mut skip_next = false;
@@ -21,8 +35,10 @@ fn main() {
                 skip_next = false;
                 continue;
             }
-            if matches!(args[i].as_str(), "--prompt" | "-p" | "--out" | "-o" | "--data" | "-d") {
-                // These flags consume the next arg as their value; don't append it to the prompt.
+            if matches!(
+                args[i].as_str(),
+                "--prompt" | "-p" | "--out" | "-o" | "--data" | "-d" | "--spec" | "-s" | "--emit-spec"
+            ) {
                 skip_next = true;
             } else if !args[i].starts_with('-') {
                 p.push_str(&args[i]);
@@ -51,22 +67,32 @@ fn main() {
     println!("📥 Input Prompt : \"{}\"", prompt);
     println!("📂 Output Dir   : \"{}\"\n", out_dir_str);
 
-    let data_path = args
-        .iter()
-        .position(|a| a == "--data" || a == "-d")
-        .and_then(|pos| args.get(pos + 1).cloned());
-
     let start_time = Instant::now();
 
     let router = InfographicIntentRouter::new();
-    let spec = match &data_path {
-        Some(path) => {
-            let content = fs::read_to_string(path).expect("failed to read data file");
-            let data = parse_data(&content, path).expect("failed to parse data file");
-            println!("📊 Bound data from : \"{}\"", path);
-            router.parse_and_bind(&prompt, &data)
+    let spec = if let Some(spec_path) = &spec_in_path {
+        // F4: load a saved spec JSON and render it directly (skip routing).
+        let content = fs::read_to_string(spec_path).expect("failed to read spec file");
+        let spec: katsvg_engine::InfographicLayoutSpec =
+            serde_json::from_str(&content).expect("failed to parse spec JSON");
+        println!("📄 Loaded spec from : \"{}\"", spec_path);
+        spec
+    } else {
+        let spec = match &data_path {
+            Some(path) => {
+                let content = fs::read_to_string(path).expect("failed to read data file");
+                let data = parse_data(&content, path).expect("failed to parse data file");
+                println!("📊 Bound data from : \"{}\"", path);
+                router.parse_and_bind(&prompt, &data)
+            }
+            None => router.parse_and_route(&prompt),
+        };
+        if let Some(emit_path) = &emit_spec_path {
+            let json = serde_json::to_string_pretty(&spec).expect("spec serialization");
+            fs::write(emit_path, json).expect("failed to write spec JSON");
+            println!("💾 Emitted spec to : \"{}\"", emit_path);
         }
-        None => router.parse_and_route(&prompt),
+        spec
     };
     let route_duration = start_time.elapsed();
 
