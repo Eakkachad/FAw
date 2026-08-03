@@ -6,17 +6,44 @@ use katsvg_engine::{EmbeddingRetriever, InfographicIntentRouter, RetrievalPipeli
 
 /// (prompt, expected layout type) eval pairs — prompt-intent corpus seed.
 const EVAL: [(&str, LayoutType); 8] = [
-    ("Build a 4-step AI Agent Deployment Timeline in dark mode", LayoutType::ProcessTimeline),
-    ("Create a deployment roadmap with phases and milestones", LayoutType::ProcessTimeline),
-    ("Q3 financial KPI dashboard with metrics in navy", LayoutType::StatisticalDashboard),
-    ("Show quarterly revenue statistics and analytics in a report", LayoutType::StatisticalDashboard),
-    ("Compare GPT-4 vs Gemini feature matrix", LayoutType::ComparisonGrid),
-    ("Build a side-by-side feature comparison table", LayoutType::ComparisonGrid),
-    ("Mind map of machine learning concepts and branches", LayoutType::MindmapHierarchy),
-    ("Org chart hierarchy of the engineering team structure", LayoutType::MindmapHierarchy),
+    (
+        "Build a 4-step AI Agent Deployment Timeline in dark mode",
+        LayoutType::ProcessTimeline,
+    ),
+    (
+        "Create a deployment roadmap with phases and milestones",
+        LayoutType::ProcessTimeline,
+    ),
+    (
+        "Q3 financial KPI dashboard with metrics in navy",
+        LayoutType::StatisticalDashboard,
+    ),
+    (
+        "Show quarterly revenue statistics and analytics in a report",
+        LayoutType::StatisticalDashboard,
+    ),
+    (
+        "Compare GPT-4 vs Gemini feature matrix",
+        LayoutType::ComparisonGrid,
+    ),
+    (
+        "Build a side-by-side feature comparison table",
+        LayoutType::ComparisonGrid,
+    ),
+    (
+        "Mind map of machine learning concepts and branches",
+        LayoutType::MindmapHierarchy,
+    ),
+    (
+        "Org chart hierarchy of the engineering team structure",
+        LayoutType::MindmapHierarchy,
+    ),
 ];
 
-fn eval_accuracy<P: RetrievalPipeline>(p: &P, corpus: &[katsvg_engine::LayoutDef]) -> (usize, usize) {
+fn eval_accuracy<P: RetrievalPipeline>(
+    p: &P,
+    corpus: &[katsvg_engine::LayoutDef],
+) -> (usize, usize) {
     let mut correct = 0;
     for (prompt, expected) in EVAL {
         let ranked = p.retrieve(prompt, corpus);
@@ -42,9 +69,17 @@ fn embedding_beats_tag_baseline_on_eval_corpus() {
     assert!(
         emb_correct >= tag_correct,
         "embedding ({}/{}) must not underperform tag baseline ({}/{})",
-        emb_correct, n, tag_correct, n
+        emb_correct,
+        n,
+        tag_correct,
+        n
     );
-    assert!(emb_correct >= n - 1, "embedding accuracy too low: {}/{}", emb_correct, n);
+    assert!(
+        emb_correct >= n - 1,
+        "embedding accuracy too low: {}/{}",
+        emb_correct,
+        n
+    );
 }
 
 #[test]
@@ -57,8 +92,12 @@ fn retrieval_is_deterministic() {
         let a = emb.retrieve(prompt, &corpus);
         let b = emb.retrieve(prompt, &corpus);
         assert_eq!(
-            a.iter().map(|r| (r.index, r.relevance.to_bits())).collect::<Vec<_>>(),
-            b.iter().map(|r| (r.index, r.relevance.to_bits())).collect::<Vec<_>>(),
+            a.iter()
+                .map(|r| (r.index, r.relevance.to_bits()))
+                .collect::<Vec<_>>(),
+            b.iter()
+                .map(|r| (r.index, r.relevance.to_bits()))
+                .collect::<Vec<_>>(),
             "retrieval must be deterministic for {prompt:?}"
         );
     }

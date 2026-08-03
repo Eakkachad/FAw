@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 //! Native SVG Chart Glyph Engine (`katSVG Charts`).
 //!
 //! Renders deterministic, dependency-free chart glyphs directly as SVG vector
@@ -22,7 +23,14 @@ pub struct ChartGlyphRenderer;
 impl ChartGlyphRenderer {
     /// Renders the chart glyph for `spec` into an SVG fragment positioned at
     /// `(x, y)` with size `(w, h)`, using the injected theme roles.
-    pub fn render(spec: &ChartSpec, colors: &ChartColors<'_>, x: u32, y: u32, w: u32, h: u32) -> String {
+    pub fn render(
+        spec: &ChartSpec,
+        colors: &ChartColors<'_>,
+        x: u32,
+        y: u32,
+        w: u32,
+        h: u32,
+    ) -> String {
         match spec.chart_type {
             ChartType::Bar => render_bar(spec, colors, x, y, w, h),
             ChartType::Line => render_line(spec, colors, x, y, w, h),
@@ -45,7 +53,12 @@ fn render_bar(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: 
     let series = spec.all_series();
     let n = spec.labels.len().max(1) as u32;
     let s_count = series.len() as u32;
-    let max = series.iter().flatten().copied().fold(0.0, f64::max).max(1.0);
+    let max = series
+        .iter()
+        .flatten()
+        .copied()
+        .fold(0.0, f64::max)
+        .max(1.0);
     let plot_w = w - 16;
     let plot_h = h - 32;
     let group_w = (plot_w / n).min(48);
@@ -84,14 +97,16 @@ fn render_bar(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: 
 fn render_line(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: u32) -> String {
     let series = spec.all_series();
     let n = spec.labels.len().max(2) as u32;
-    let max = series.iter().flatten().copied().fold(0.0, f64::max).max(1.0);
+    let max = series
+        .iter()
+        .flatten()
+        .copied()
+        .fold(0.0, f64::max)
+        .max(1.0);
     let plot_w = w - 16;
     let plot_h = h - 32;
 
-    let mut svg = format!(
-        "<g transform=\"translate({}, {})\">\n",
-        x, y
-    );
+    let mut svg = format!("<g transform=\"translate({}, {})\">\n", x, y);
     for (s, vals) in series.iter().enumerate() {
         let color = if s % 2 == 0 { c.accent1 } else { c.accent2 };
         let mut points = String::new();
@@ -102,7 +117,8 @@ fn render_line(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h:
         }
         svg.push_str(&format!(
             "  <polyline points=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"2\" />\n",
-            points.trim(), color
+            points.trim(),
+            color
         ));
         for (i, v) in vals.iter().enumerate() {
             let px = 8 + i as u32 * (plot_w - 16) / (n - 1);
@@ -154,7 +170,10 @@ fn render_pie(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: 
     }
     svg.push_str(&format!(
         "  <circle cx=\"{}\" cy=\"{}\" r=\"{}\" fill=\"{}\" />\n",
-        cx, cy, (r * 0.5) as u32, c.bg
+        cx,
+        cy,
+        (r * 0.5) as u32,
+        c.bg
     ));
     svg.push_str("</g>\n");
     svg
@@ -168,10 +187,17 @@ fn render_scatter(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32,
 
     let mut svg = format!(
         "<g transform=\"translate({}, {})\">\n  <rect x=\"8\" y=\"0\" width=\"{}\" height=\"{}\" fill=\"none\" stroke=\"#374151\" stroke-width=\"1\" />\n",
-        x, y, plot_w - 8, plot_h
+        x,
+        y,
+        plot_w - 8,
+        plot_h
     );
     for (i, v) in spec.values.iter().enumerate() {
-        let px = 8 + if n == 1 { 0 } else { i as u32 * (plot_w - 8) / (n - 1) };
+        let px = 8 + if n == 1 {
+            0
+        } else {
+            i as u32 * (plot_w - 8) / (n - 1)
+        };
         let py = plot_h - ((v / max) * plot_h as f64) as u32;
         let color = if i % 2 == 0 { c.accent1 } else { c.accent2 };
         svg.push_str(&format!(
@@ -210,7 +236,14 @@ fn render_gauge(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h
     let r = (w / 2 - 8) as f64;
     let mut svg = format!(
         "<g transform=\"translate({}, {})\">\n  <path d=\"M {} {} A {} {} 0 1 1 {} {}\" fill=\"none\" stroke=\"#374151\" stroke-width=\"12\" stroke-linecap=\"round\" />\n",
-        x, y, cx - (r as u32), cy, r, r, cx + (r as u32), cy
+        x,
+        y,
+        cx - (r as u32),
+        cy,
+        r,
+        r,
+        cx + (r as u32),
+        cy
     );
     for (i, v) in spec.values.iter().enumerate() {
         let frac = (v / max).clamp(0.0, 1.0);
@@ -218,7 +251,7 @@ fn render_gauge(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h
         let color = if i % 2 == 0 { c.accent1 } else { c.accent2 };
         let x0 = cx as f64 - r + (r * sweep.cos());
         let y0 = cy as f64 - (r * sweep.sin());
-    svg.push_str(&format!(
+        svg.push_str(&format!(
         "  <path d=\"M {} {} A {} {} 0 0 1 {} {}\" fill=\"none\" stroke=\"{}\" stroke-width=\"12\" stroke-linecap=\"round\" />\n",
         cx as f64 - r, cy as f64, r, r, x0, y0, color
     ));
@@ -264,7 +297,14 @@ fn render_donut(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h
 }
 
 /// Stacked bar chart: each bar is a stack of two segments (accent1 bottom, accent2 top).
-fn render_stacked_bar(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: u32) -> String {
+fn render_stacked_bar(
+    spec: &ChartSpec,
+    c: &ChartColors<'_>,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+) -> String {
     let n = spec.values.len() as u32;
     let max = max_value(&spec.values);
     let plot_w = w - 16;
@@ -313,7 +353,11 @@ fn render_area(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h:
     let mut line = String::new();
     let mut area = String::new();
     for (i, v) in spec.values.iter().enumerate() {
-        let px = 8 + if n == 1 { 0 } else { i as u32 * (plot_w - 16) / (n - 1) };
+        let px = 8 + if n == 1 {
+            0
+        } else {
+            i as u32 * (plot_w - 16) / (n - 1)
+        };
         let py = plot_h - ((v / max) * plot_h as f64) as u32;
         line.push_str(&format!("{},{} ", px, py));
         area.push_str(&format!("{},{} ", px, py));
@@ -321,18 +365,33 @@ fn render_area(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h:
 
     let mut svg = format!(
         "<g transform=\"translate({}, {})\">\n  <polyline points=\"8,{} {}\" fill=\"none\" stroke=\"#374151\" stroke-width=\"1\" />\n",
-        x, y, plot_h, if n > 0 { line.split(' ').last().unwrap_or("") } else { "" }
+        x,
+        y,
+        plot_h,
+        if n > 0 {
+            line.split(' ').next_back().unwrap_or("")
+        } else {
+            ""
+        }
     );
     svg.push_str(&format!(
         "  <polygon points=\"8,{} {} 8,{}\" fill=\"{}\" fill-opacity=\"0.25\" />\n",
-        plot_h, area.trim(), plot_h, c.accent2
+        plot_h,
+        area.trim(),
+        plot_h,
+        c.accent2
     ));
     svg.push_str(&format!(
         "  <polyline points=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"2\" />\n",
-        line.trim(), c.accent1
+        line.trim(),
+        c.accent1
     ));
     for (i, v) in spec.values.iter().enumerate() {
-        let px = 8 + if n == 1 { 0 } else { i as u32 * (plot_w - 16) / (n - 1) };
+        let px = 8 + if n == 1 {
+            0
+        } else {
+            i as u32 * (plot_w - 16) / (n - 1)
+        };
         let py = plot_h - ((v / max) * plot_h as f64) as u32;
         svg.push_str(&format!(
             "  <circle cx=\"{}\" cy=\"{}\" r=\"4\" fill=\"{}\" />\n",

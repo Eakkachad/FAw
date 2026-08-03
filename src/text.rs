@@ -19,6 +19,12 @@ pub struct TextRenderer {
     thai: FontArc,
 }
 
+impl Default for TextRenderer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextRenderer {
     pub fn new() -> Self {
         Self {
@@ -28,7 +34,7 @@ impl TextRenderer {
     }
 
     /// Pick the font that has a glyph for `c` (Thai fallback for CJK/Thai).
-    fn font_for<'a>(&'a self, c: char) -> &'a FontArc {
+    fn font_for(&self, c: char) -> &FontArc {
         if self.latin.glyph_id(c).0 != 0 {
             &self.latin
         } else {
@@ -38,6 +44,7 @@ impl TextRenderer {
 
     /// Draw `text` starting at `(x, y)` (baseline) with `px` height and `color`,
     /// blending anti-aliased coverage into the RGB buffer.
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_text(
         &self,
         buf: &mut [u8],
@@ -118,7 +125,7 @@ impl TextRenderer {
         let mut hi = text.chars().count();
         let ell = self.text_width(px, "…");
         while lo < hi {
-            let mid = (lo + hi + 1) / 2;
+            let mid = (lo + hi).div_ceil(2);
             let prefix: String = text.chars().take(mid).collect();
             if self.text_width(px, &prefix) + ell <= budget_px {
                 lo = mid;

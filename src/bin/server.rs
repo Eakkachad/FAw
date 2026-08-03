@@ -102,7 +102,10 @@ fn handle(mut stream: TcpStream, router: &InfographicIntentRouter) {
             let query = t.split_once('?').map(|(_, q)| q).unwrap_or("");
             let params = parse_query(query);
             let prompt = params.get("prompt").cloned().unwrap_or_default();
-            let format = params.get("format").cloned().unwrap_or_else(|| "svg".into());
+            let format = params
+                .get("format")
+                .cloned()
+                .unwrap_or_else(|| "svg".into());
             let spec = router.parse_and_route(&prompt);
             match format.as_str() {
                 "all" => {
@@ -207,8 +210,7 @@ fn preview_page(spec: &katsvg_engine::InfographicLayoutSpec) -> String {
          <h2>katSVG — {}</h2>\
          <div>{}</div>\
          <p><a href=\"/render?prompt=.\">back</a></p></body></html>",
-        spec.title,
-        svg
+        spec.title, svg
     )
 }
 
@@ -241,9 +243,15 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-fn status_ok() -> String { "200 OK".to_string() }
-fn status_bad() -> String { "400 Bad Request".to_string() }
-fn status_not_found() -> String { "404 Not Found".to_string() }
+fn status_ok() -> String {
+    "200 OK".to_string()
+}
+fn status_bad() -> String {
+    "400 Bad Request".to_string()
+}
+fn status_not_found() -> String {
+    "404 Not Found".to_string()
+}
 
 fn main() {
     let port: u16 = std::env::args()

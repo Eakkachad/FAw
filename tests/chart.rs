@@ -1,8 +1,8 @@
 //! S5 gate tests: chart data binding and native SVG glyph rendering.
 
+use katsvg_engine::InfographicIntentRouter;
 use katsvg_engine::chart::{ChartColors, ChartGlyphRenderer};
 use katsvg_engine::router::{ChartSpec, ChartType};
-use katsvg_engine::InfographicIntentRouter;
 
 const COLORS: ChartColors<'static> = ChartColors {
     bg: "#0B0F19",
@@ -16,7 +16,10 @@ const COLORS: ChartColors<'static> = ChartColors {
 fn chart_extracted_only_when_requested() {
     let r = InfographicIntentRouter::new();
     let no_chart = r.parse_and_route("Build a 4-step AI Agent Deployment Timeline in dark mode");
-    assert!(no_chart.chart.is_none(), "no chart intent -> no chart bound");
+    assert!(
+        no_chart.chart.is_none(),
+        "no chart intent -> no chart bound"
+    );
 
     let bar = r.parse_and_route("Show a bar chart: Q1: 10, Q2: 25, Q3: 15, Q4: 30");
     let chart = bar.chart.expect("bar chart intent should bind a chart");

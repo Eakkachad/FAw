@@ -1,14 +1,24 @@
+#![allow(clippy::too_many_arguments)]
 //! Icon rendering for raster/vector formats beyond SVG (`katSVG Icon Raster`).
 //!
 //! F3: draws icon glyphs (from the icon corpus) as raster strokes into an RGB
 //! pixel buffer, and as PDF stroke ops. Uses the shared `icon_paths` tokenizer.
 
-use crate::icon_paths::parse_path;
 use crate::IconRenderer;
+use crate::icon_paths::parse_path;
 
 /// Draw an icon named `name` into an RGB buffer centered on `(cx, cy)` with
 /// stroke width `stroke` (the icon is a 24×24 box).
-pub fn draw_icon_raster(buf: &mut [u8], w: usize, h: usize, cx: usize, cy: usize, stroke: u32, color: (u8, u8, u8), name: &str) {
+pub fn draw_icon_raster(
+    buf: &mut [u8],
+    w: usize,
+    h: usize,
+    cx: usize,
+    cy: usize,
+    stroke: u32,
+    color: (u8, u8, u8),
+    name: &str,
+) {
     let origin_x = cx as i32 - 12;
     let origin_y = cy as i32 - 12;
     for path in IconRenderer::paths(name) {
@@ -86,7 +96,11 @@ pub fn draw_icon_raster(buf: &mut [u8], w: usize, h: usize, cx: usize, cy: usize
                     // approximate arcs/curves as a chord to the endpoint
                     let off = if c == 'C' || c == 'c' { 4 } else { 5 };
                     if let (Some(&x), Some(&y)) = (a.get(off), a.get(off + 1)) {
-                        let end = if c == 'a' || c == 'c' { (cur.0 + x, cur.1 + y) } else { (x, y) };
+                        let end = if c == 'a' || c == 'c' {
+                            (cur.0 + x, cur.1 + y)
+                        } else {
+                            (x, y)
+                        };
                         let (sx, sy) = to_px(cur, origin_x, origin_y);
                         let (ex, ey) = to_px(end, origin_x, origin_y);
                         draw_line(buf, w, h, sx, sy, ex, ey, stroke, color);
@@ -106,7 +120,16 @@ pub fn draw_icon_raster(buf: &mut [u8], w: usize, h: usize, cx: usize, cy: usize
 }
 
 /// Append PDF operators drawing `name` as a stroked path centered on `(cx, cy)`.
-pub fn draw_icon_pdf(stream: &mut String, cx: f32, cy: f32, linewidth: f32, r: f32, g: f32, b: f32, name: &str) {
+pub fn draw_icon_pdf(
+    stream: &mut String,
+    cx: f32,
+    cy: f32,
+    linewidth: f32,
+    r: f32,
+    g: f32,
+    b: f32,
+    name: &str,
+) {
     let ox = cx - 12.0;
     let oy = cy - 12.0;
     stream.push_str(&format!("{r:.3} {g:.3} {b:.3} RG {linewidth} w\n"));
@@ -154,19 +177,39 @@ pub fn draw_icon_pdf(stream: &mut String, cx: f32, cy: f32, linewidth: f32, r: f
 
 fn resolve_end(cmd: char, a: &[f32], cur: (f32, f32)) -> (f32, f32) {
     match cmd {
-        'L' => (a.first().copied().unwrap_or(cur.0), a.get(1).copied().unwrap_or(cur.1)),
-        'l' => (cur.0 + a.first().copied().unwrap_or(0.0), cur.1 + a.get(1).copied().unwrap_or(0.0)),
+        'L' => (
+            a.first().copied().unwrap_or(cur.0),
+            a.get(1).copied().unwrap_or(cur.1),
+        ),
+        'l' => (
+            cur.0 + a.first().copied().unwrap_or(0.0),
+            cur.1 + a.get(1).copied().unwrap_or(0.0),
+        ),
         'H' => (a.first().copied().unwrap_or(cur.0), cur.1),
         'h' => (cur.0 + a.first().copied().unwrap_or(0.0), cur.1),
         'V' => (cur.0, a.first().copied().unwrap_or(cur.1)),
         'v' => (cur.0, cur.1 + a.first().copied().unwrap_or(0.0)),
         'A' | 'a' => {
-            let (x, y) = (a.get(5).copied().unwrap_or(cur.0), a.get(6).copied().unwrap_or(cur.1));
-            if cmd == 'a' { (cur.0 + x, cur.1 + y) } else { (x, y) }
+            let (x, y) = (
+                a.get(5).copied().unwrap_or(cur.0),
+                a.get(6).copied().unwrap_or(cur.1),
+            );
+            if cmd == 'a' {
+                (cur.0 + x, cur.1 + y)
+            } else {
+                (x, y)
+            }
         }
         'C' | 'c' => {
-            let (x, y) = (a.get(4).copied().unwrap_or(cur.0), a.get(5).copied().unwrap_or(cur.1));
-            if cmd == 'c' { (cur.0 + x, cur.1 + y) } else { (x, y) }
+            let (x, y) = (
+                a.get(4).copied().unwrap_or(cur.0),
+                a.get(5).copied().unwrap_or(cur.1),
+            );
+            if cmd == 'c' {
+                (cur.0 + x, cur.1 + y)
+            } else {
+                (x, y)
+            }
         }
         _ => cur,
     }
@@ -181,7 +224,17 @@ fn set(buf: &mut [u8], w: usize, h: usize, px: i32, py: i32, c: (u8, u8, u8)) {
     }
 }
 
-fn draw_line(buf: &mut [u8], w: usize, h: usize, x0: i32, y0: i32, x1: i32, y1: i32, stroke: u32, c: (u8, u8, u8)) {
+fn draw_line(
+    buf: &mut [u8],
+    w: usize,
+    h: usize,
+    x0: i32,
+    y0: i32,
+    x1: i32,
+    y1: i32,
+    stroke: u32,
+    c: (u8, u8, u8),
+) {
     let dx = (x1 - x0).abs().max(1);
     let dy = (y1 - y0).abs().max(1);
     let steps = dx.max(dy);
@@ -191,7 +244,14 @@ fn draw_line(buf: &mut [u8], w: usize, h: usize, x0: i32, y0: i32, x1: i32, y1: 
         let y = y0 as f32 + (y1 - y0) as f32 * t;
         for sy in 0..stroke {
             for sx in 0..stroke {
-                set(buf, w, h, x as i32 + sx as i32 - (stroke as i32 / 2), y as i32 + sy as i32 - (stroke as i32 / 2), c);
+                set(
+                    buf,
+                    w,
+                    h,
+                    x as i32 + sx as i32 - (stroke as i32 / 2),
+                    y as i32 + sy as i32 - (stroke as i32 / 2),
+                    c,
+                );
             }
         }
     }

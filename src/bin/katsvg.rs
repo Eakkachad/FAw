@@ -30,18 +30,26 @@ fn main() {
     let prompt = if args.len() > 1 {
         let mut p = String::new();
         let mut skip_next = false;
-        for i in 1..args.len() {
+        for arg in args.iter().skip(1) {
             if skip_next {
                 skip_next = false;
                 continue;
             }
             if matches!(
-                args[i].as_str(),
-                "--prompt" | "-p" | "--out" | "-o" | "--data" | "-d" | "--spec" | "-s" | "--emit-spec"
+                arg.as_str(),
+                "--prompt"
+                    | "-p"
+                    | "--out"
+                    | "-o"
+                    | "--data"
+                    | "-d"
+                    | "--spec"
+                    | "-s"
+                    | "--emit-spec"
             ) {
                 skip_next = true;
-            } else if !args[i].starts_with('-') {
-                p.push_str(&args[i]);
+            } else if !arg.starts_with('-') {
+                p.push_str(arg);
                 p.push(' ');
             }
         }
@@ -101,9 +109,18 @@ fn main() {
 
     let total_duration = start_time.elapsed();
 
-    println!("⚡ Latent Intent Parsing Latency : {:.3?} ms", route_duration.as_secs_f64() * 1000.0);
-    println!("🎨 Multi-Format Export Latency   : {:.3?} ms", result.total_export_duration_ms);
-    println!("⏱️ Total End-to-End Latency      : {:.3?} ms", total_duration.as_secs_f64() * 1000.0);
+    println!(
+        "⚡ Latent Intent Parsing Latency : {:.3?} ms",
+        route_duration.as_secs_f64() * 1000.0
+    );
+    println!(
+        "🎨 Multi-Format Export Latency   : {:.3?} ms",
+        result.total_export_duration_ms
+    );
+    println!(
+        "⏱️ Total End-to-End Latency      : {:.3?} ms",
+        total_duration.as_secs_f64() * 1000.0
+    );
 
     println!("\n✅ Generated Vector & Document Artifacts:");
     println!("  ├─ 📄 SVG Vector File   : {:?}", result.svg_path);
@@ -112,6 +129,9 @@ fn main() {
     println!("  └─ 📊 PPTX Presentation : {:?}", result.pptx_path);
 
     println!("\n================================================================================");
-    println!("🎉 SUCCESS: Infographic generated with 0.0% Hallucination in {:.2} ms!", total_duration.as_secs_f64() * 1000.0);
+    println!(
+        "🎉 SUCCESS: Infographic generated with 0.0% Hallucination in {:.2} ms!",
+        total_duration.as_secs_f64() * 1000.0
+    );
     println!("================================================================================");
 }

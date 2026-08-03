@@ -61,7 +61,10 @@ fn main() {
     let a = serde_json::to_vec(&router.parse_and_route(PROMPTS[0])).unwrap();
     let b = serde_json::to_vec(&router.parse_and_route(PROMPTS[0])).unwrap();
     let deterministic = a == b;
-    println!("G1 determinism     : {} (same prompt -> identical spec)", if deterministic { "PASS" } else { "FAIL" });
+    println!(
+        "G1 determinism     : {} (same prompt -> identical spec)",
+        if deterministic { "PASS" } else { "FAIL" }
+    );
 
     // G2/G3: latency sampling across prompts
     let mut parse_samples = Vec::with_capacity(n);
@@ -85,17 +88,18 @@ fn main() {
     println!("G3 export (4 files):");
     report("export", &export_samples);
 
-    let parse_p50 = pct(&mut parse_samples.clone(), 0.50).as_secs_f64() * 1000.0;
-    let parse_p99 = pct(&mut parse_samples.clone(), 0.99).as_secs_f64() * 1000.0;
-    let export_p50 = pct(&mut export_samples.clone(), 0.50).as_secs_f64() * 1000.0;
-    let export_p99 = pct(&mut export_samples.clone(), 0.99).as_secs_f64() * 1000.0;
+    let parse_p50 = pct(&parse_samples.clone(), 0.50).as_secs_f64() * 1000.0;
+    let parse_p99 = pct(&parse_samples.clone(), 0.99).as_secs_f64() * 1000.0;
+    let export_p50 = pct(&export_samples.clone(), 0.50).as_secs_f64() * 1000.0;
+    let export_p99 = pct(&export_samples.clone(), 0.99).as_secs_f64() * 1000.0;
 
-    let mut gates = Vec::new();
-    gates.push(("parse p50 < 0.5 ms", parse_p50 < GATE_PARSE_P50_MS));
-    gates.push(("parse p99 < 2.0 ms", parse_p99 < GATE_PARSE_P99_MS));
-    gates.push(("export p50 < 30 ms", export_p50 < GATE_EXPORT_P50_MS));
-    gates.push(("export p99 < 60 ms", export_p99 < GATE_EXPORT_P99_MS));
-    gates.push(("determinism", deterministic));
+    let gates = vec![
+        ("parse p50 < 0.5 ms", parse_p50 < GATE_PARSE_P50_MS),
+        ("parse p99 < 2.0 ms", parse_p99 < GATE_PARSE_P99_MS),
+        ("export p50 < 30 ms", export_p50 < GATE_EXPORT_P50_MS),
+        ("export p99 < 60 ms", export_p99 < GATE_EXPORT_P99_MS),
+        ("determinism", deterministic),
+    ];
 
     println!("\nGOAT gate results:");
     let mut all_pass = true;
@@ -104,6 +108,13 @@ fn main() {
         all_pass &= ok;
     }
 
-    println!("\n{}", if all_pass { "ALL GATES PASS" } else { "GATE FAILURE" });
+    println!(
+        "\n{}",
+        if all_pass {
+            "ALL GATES PASS"
+        } else {
+            "GATE FAILURE"
+        }
+    );
     std::process::exit(if all_pass { 0 } else { 1 });
 }

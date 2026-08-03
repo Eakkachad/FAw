@@ -19,11 +19,18 @@ fn png_chart_region_has_content() {
 fn pptx_contains_chart_shape_xml() {
     let spec = chart_spec();
     let pptx = katsvg_engine::PPTXPresentationExporter::generate_pptx_bytes(&spec);
-    assert!(pptx.windows(b"[Content_Types].xml".len()).any(|w| w == b"[Content_Types].xml"), "pptx package valid");
+    assert!(
+        pptx.windows(b"[Content_Types].xml".len())
+            .any(|w| w == b"[Content_Types].xml"),
+        "pptx package valid"
+    );
     // Chart emits native shapes: at least one bar/rect shape (id >= 100) beyond title/sections
     let txt = String::from_utf8_lossy(&pptx);
     assert!(txt.contains("<p:sp>"), "pptx must contain shapes");
-    assert!(txt.contains("prstGeom prst=\"rect\""), "chart shapes must use rect geometry");
+    assert!(
+        txt.contains("prstGeom prst=\"rect\""),
+        "chart shapes must use rect geometry"
+    );
 }
 
 #[test]
@@ -33,7 +40,10 @@ fn pdf_with_chart_is_valid_pdf17() {
     assert_eq!(&pdf[..8], b"%PDF-1.7");
     assert!(pdf.windows(b"%%EOF".len()).any(|w| w == b"%%EOF"));
     // Chart draws vector primitives: expect at least 1 fill operator for bars
-    assert!(pdf.windows(b" re f".len()).any(|w| w == b" re f"), "PDF must contain vector fill ops for chart");
+    assert!(
+        pdf.windows(b" re f".len()).any(|w| w == b" re f"),
+        "PDF must contain vector fill ops for chart"
+    );
 }
 
 #[test]
@@ -56,10 +66,20 @@ fn pdf_embeds_type0_font_for_thai_text() {
     let r = InfographicIntentRouter::new();
     let spec = r.parse_and_route("สร้างไทม์ไลน์การพัฒนาระบบ");
     let pdf = katsvg_engine::PDFVectorExporter::generate_pdf_bytes(&spec);
-    assert!(pdf.windows(b"/Subtype /Type0".len()).any(|w| w == b"/Subtype /Type0"), "Type0 font present");
-    assert!(pdf.windows(b"/FontFile2".len()).any(|w| w == b"/FontFile2"), "FontFile2 stream present");
+    assert!(
+        pdf.windows(b"/Subtype /Type0".len())
+            .any(|w| w == b"/Subtype /Type0"),
+        "Type0 font present"
+    );
+    assert!(
+        pdf.windows(b"/FontFile2".len()).any(|w| w == b"/FontFile2"),
+        "FontFile2 stream present"
+    );
     // Thai text drawn as CID hex: <HEX> Tj
-    assert!(pdf.windows(b"> Tj".len()).any(|w| w == b"> Tj"), "Thai text emitted as CID hex");
+    assert!(
+        pdf.windows(b"> Tj".len()).any(|w| w == b"> Tj"),
+        "Thai text emitted as CID hex"
+    );
 }
 
 #[test]
@@ -67,8 +87,15 @@ fn pdf_latin_text_stays_literal() {
     let r = InfographicIntentRouter::new();
     let spec = r.parse_and_route("Quarterly revenue dashboard in navy");
     let pdf = katsvg_engine::PDFVectorExporter::generate_pdf_bytes(&spec);
-    assert!(!pdf.windows(b"/Subtype /Type0".len()).any(|w| w == b"/Subtype /Type0"), "ascii-only PDF has no Type0 font");
-    assert!(pdf.windows(b") Tj".len()).any(|w| w == b") Tj"), "latin text stays literal string");
+    assert!(
+        !pdf.windows(b"/Subtype /Type0".len())
+            .any(|w| w == b"/Subtype /Type0"),
+        "ascii-only PDF has no Type0 font"
+    );
+    assert!(
+        pdf.windows(b") Tj".len()).any(|w| w == b") Tj"),
+        "latin text stays literal string"
+    );
 }
 
 #[test]
@@ -78,7 +105,10 @@ fn pdf_metric_cards_carry_icon_strokes() {
     assert_eq!(spec.metrics.len(), 2, "both metric pairs bind");
     let pdf = katsvg_engine::PDFVectorExporter::generate_pdf_bytes(&spec);
     // icon strokes emitted with a stroke-op RG + linewidth
-    assert!(pdf.windows(b" RG 1.5 w".len()).any(|w| w == b" RG 1.5 w"), "PDF icon stroke op present");
+    assert!(
+        pdf.windows(b" RG 1.5 w".len()).any(|w| w == b" RG 1.5 w"),
+        "PDF icon stroke op present"
+    );
 }
 
 #[test]
@@ -87,7 +117,10 @@ fn pptx_metric_cards_have_icons() {
     let spec = r.parse_and_route("Q3 KPI dashboard: revenue: 124M, users: 12M in navy");
     let pptx = katsvg_engine::PPTXPresentationExporter::generate_pptx_bytes(&spec);
     let txt = String::from_utf8_lossy(&pptx);
-    assert!(txt.contains("name=\"Metric 1\""), "PPTX metric card 1 present");
+    assert!(
+        txt.contains("name=\"Metric 1\""),
+        "PPTX metric card 1 present"
+    );
     assert!(txt.contains("name=\"Icon 1\""), "PPTX icon mark 1 present");
 }
 
@@ -96,6 +129,12 @@ fn nested_colon_metric_extraction() {
     let r = InfographicIntentRouter::new();
     let spec = r.parse_and_route("Q3 KPI dashboard: revenue: 124M, users: 12M in navy");
     let values: Vec<&str> = spec.metrics.iter().map(|m| m.value.as_str()).collect();
-    assert!(values.iter().any(|v| v.contains("124")), "nested colon must bind revenue, got {values:?}");
-    assert!(values.iter().any(|v| v.contains("12")), "users bound, got {values:?}");
+    assert!(
+        values.iter().any(|v| v.contains("124")),
+        "nested colon must bind revenue, got {values:?}"
+    );
+    assert!(
+        values.iter().any(|v| v.contains("12")),
+        "users bound, got {values:?}"
+    );
 }

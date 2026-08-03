@@ -22,11 +22,17 @@ pub struct BoundData {
 
 /// Parse a data file by extension (`csv` or `json`). Returns bound data.
 pub fn parse_data(content: &str, path_or_ext: &str) -> Result<BoundData, String> {
-    let ext = path_or_ext.split('.').last().unwrap_or("").to_lowercase();
+    let ext = path_or_ext
+        .split('.')
+        .next_back()
+        .unwrap_or("")
+        .to_lowercase();
     match ext.as_str() {
         "csv" => parse_csv(content),
         "json" => parse_json(content),
-        _ => Err(format!("unsupported data format: {ext} (use .csv or .json)")),
+        _ => Err(format!(
+            "unsupported data format: {ext} (use .csv or .json)"
+        )),
     }
 }
 
@@ -49,7 +55,9 @@ fn parse_csv(content: &str) -> Result<BoundData, String> {
         let label = cells[0].to_string();
         let mut vals = Vec::with_capacity(cells.len() - 1);
         for c in &cells[1..] {
-            let v = c.parse::<f64>().map_err(|_| format!("non-numeric value in row: {line}"))?;
+            let v = c
+                .parse::<f64>()
+                .map_err(|_| format!("non-numeric value in row: {line}"))?;
             vals.push(v);
         }
         labels.push(label);
@@ -77,7 +85,11 @@ fn parse_csv(content: &str) -> Result<BoundData, String> {
             values: primary,
             unit: None,
             series: extras,
-            series_names: if series_names.len() > 1 { series_names[1..].to_vec() } else { Vec::new() },
+            series_names: if series_names.len() > 1 {
+                series_names[1..].to_vec()
+            } else {
+                Vec::new()
+            },
         });
     }
     let _ = cols.len();
@@ -99,7 +111,8 @@ struct JsonEntry {
 }
 
 fn parse_json(content: &str) -> Result<BoundData, String> {
-    let v: serde_json::Value = serde_json::from_str(content).map_err(|e| format!("invalid JSON: {e}"))?;
+    let v: serde_json::Value =
+        serde_json::from_str(content).map_err(|e| format!("invalid JSON: {e}"))?;
 
     let mut out = BoundData::default();
 
@@ -122,7 +135,14 @@ fn parse_json(content: &str) -> Result<BoundData, String> {
                 }
             }
             if labels.len() >= 2 {
-                out.chart = Some(ChartSpec { chart_type: ChartType::Bar, labels, values, unit: None, series: Vec::new(), series_names: Vec::new() });
+                out.chart = Some(ChartSpec {
+                    chart_type: ChartType::Bar,
+                    labels,
+                    values,
+                    unit: None,
+                    series: Vec::new(),
+                    series_names: Vec::new(),
+                });
             }
             if !metrics.is_empty() {
                 out.metrics = metrics;
@@ -133,9 +153,18 @@ fn parse_json(content: &str) -> Result<BoundData, String> {
             let mut values = Vec::new();
             let mut metrics = Vec::new();
             for item in items {
-                let entry: JsonEntry = serde_json::from_value(item).map_err(|e| format!("bad array item: {e}"))?;
-                let label = if !entry.label.is_empty() { entry.label } else { entry.name.unwrap_or_default() };
-                let value = if entry.value != 0.0 { entry.value } else { entry.amount.unwrap_or(0.0) };
+                let entry: JsonEntry =
+                    serde_json::from_value(item).map_err(|e| format!("bad array item: {e}"))?;
+                let label = if !entry.label.is_empty() {
+                    entry.label
+                } else {
+                    entry.name.unwrap_or_default()
+                };
+                let value = if entry.value != 0.0 {
+                    entry.value
+                } else {
+                    entry.amount.unwrap_or(0.0)
+                };
                 if !label.is_empty() {
                     labels.push(label);
                     values.push(value);
@@ -143,9 +172,20 @@ fn parse_json(content: &str) -> Result<BoundData, String> {
                 let _ = &entry.extra;
             }
             if labels.len() >= 2 {
-                out.chart = Some(ChartSpec { chart_type: ChartType::Bar, labels, values, unit: None, series: Vec::new(), series_names: Vec::new() });
+                out.chart = Some(ChartSpec {
+                    chart_type: ChartType::Bar,
+                    labels,
+                    values,
+                    unit: None,
+                    series: Vec::new(),
+                    series_names: Vec::new(),
+                });
             } else if !labels.is_empty() {
-                metrics.push(MetricCardSpec { label: labels[0].to_uppercase(), value: format!("{}", values[0]), icon: "chart".to_string() });
+                metrics.push(MetricCardSpec {
+                    label: labels[0].to_uppercase(),
+                    value: format!("{}", values[0]),
+                    icon: "chart".to_string(),
+                });
             }
             let _ = &metrics;
         }

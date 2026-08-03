@@ -1,12 +1,14 @@
 //! Integration tests for katSVG exporters — regression gates for D1 (PNG),
 //! D2 (PPTX), D5 (offline SVG), and byte-determinism.
 
-use katsvg_engine::{InfographicIntentRouter, PDFVectorExporter, PPTXPresentationExporter, PNGRasterExporter, SVGVectorRenderer};
+use katsvg_engine::{
+    InfographicIntentRouter, PDFVectorExporter, PNGRasterExporter, PPTXPresentationExporter,
+    SVGVectorRenderer,
+};
 
 fn spec() -> katsvg_engine::InfographicLayoutSpec {
-    InfographicIntentRouter::new().parse_and_route(
-        "Build a 4-step AI Agent Deployment Timeline in dark mode",
-    )
+    InfographicIntentRouter::new()
+        .parse_and_route("Build a 4-step AI Agent Deployment Timeline in dark mode")
 }
 
 #[test]
@@ -36,9 +38,15 @@ fn pptx_is_valid_ooxml_zip() {
     let pptx = PPTXPresentationExporter::generate_pptx_bytes(&spec());
     // ZIP local file header signature + [Content_Types].xml first entry
     assert_eq!(&pptx[..4], b"PK\x03\x04", "ZIP local header missing");
-    assert!(pptx.windows(b"[Content_Types].xml".len()).any(|w| w == b"[Content_Types].xml"));
+    assert!(
+        pptx.windows(b"[Content_Types].xml".len())
+            .any(|w| w == b"[Content_Types].xml")
+    );
     // EOCD signature present
-    assert!(pptx.windows(4).any(|w| w == b"PK\x05\x06"), "ZIP EOCD missing");
+    assert!(
+        pptx.windows(4).any(|w| w == b"PK\x05\x06"),
+        "ZIP EOCD missing"
+    );
 }
 
 #[test]
@@ -52,14 +60,20 @@ fn pptx_is_deterministic() {
 fn pdf_is_valid_pdf17() {
     let pdf = PDFVectorExporter::generate_pdf_bytes(&spec());
     assert_eq!(&pdf[..8], b"%PDF-1.7", "PDF 1.7 header missing");
-    assert!(pdf.windows(b"%%EOF".len()).any(|w| w == b"%%EOF"), "%%EOF trailer missing");
+    assert!(
+        pdf.windows(b"%%EOF".len()).any(|w| w == b"%%EOF"),
+        "%%EOF trailer missing"
+    );
 }
 
 #[test]
 fn svg_has_no_network_dependency() {
     let svg = SVGVectorRenderer::render(&spec());
     assert!(!svg.contains("@import"), "SVG must not load external fonts");
-    assert!(!svg.contains("fonts.googleapis.com"), "SVG must not reference Google Fonts");
+    assert!(
+        !svg.contains("fonts.googleapis.com"),
+        "SVG must not reference Google Fonts"
+    );
     assert!(svg.contains("<svg"), "SVG root missing");
 }
 

@@ -43,5 +43,5 @@ pub fn font_stack(has_thai: bool) -> String {
 
 /// Detect whether a string contains non-ASCII (Thai/CJK) characters.
 pub fn has_non_ascii(text: &str) -> bool {
-    text.chars().any(|c| !c.is_ascii())
+    !text.is_ascii()
 }

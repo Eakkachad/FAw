@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 //! Chart shapes for PPTX output (`katSVG Chart PPTX`).
 //!
 //! Emits native PowerPoint `<p:sp>` shapes (rects for bars, polyline for lines,
@@ -12,12 +13,23 @@ const EMU_PER_PT: u64 = 12700;
 
 /// Renders chart shapes positioned at `(x_pt, y_pt)` with size `(w_pt, h_pt)` pt.
 /// Returns an XML fragment of `<p:sp>` elements.
-pub fn chart_shapes_pptx(spec: &ChartSpec, x_pt: u32, y_pt: u32, w_pt: u32, h_pt: u32, accent1: &str, accent2: &str, text: &str) -> String {
+pub fn chart_shapes_pptx(
+    spec: &ChartSpec,
+    x_pt: u32,
+    y_pt: u32,
+    w_pt: u32,
+    h_pt: u32,
+    accent1: &str,
+    accent2: &str,
+    text: &str,
+) -> String {
     let mut xml = String::with_capacity(2048);
     match spec.chart_type {
         ChartType::Bar => bar(&mut xml, spec, x_pt, y_pt, w_pt, h_pt, accent1, accent2),
         ChartType::Line => line(&mut xml, spec, x_pt, y_pt, w_pt, h_pt, accent1, accent2),
-        ChartType::Pie | ChartType::Donut => pie(&mut xml, spec, x_pt, y_pt, w_pt, h_pt, accent1, accent2),
+        ChartType::Pie | ChartType::Donut => {
+            pie(&mut xml, spec, x_pt, y_pt, w_pt, h_pt, accent1, accent2)
+        }
         ChartType::Scatter => scatter(&mut xml, spec, x_pt, y_pt, w_pt, h_pt, accent1, accent2),
         ChartType::Heatmap => heatmap(&mut xml, spec, x_pt, y_pt, w_pt, h_pt, accent1, accent2),
         ChartType::Gauge => gauge(&mut xml, spec, x_pt, y_pt, w_pt, h_pt, accent1, accent2),
@@ -50,7 +62,16 @@ fn shape_rect(xml: &mut String, id: u32, x: u32, y: u32, w: u32, h: u32, fill: &
 }
 
 /// Emits one `<p:sp>` freeform (custom geometry) for a polyline/path.
-fn shape_freeform(xml: &mut String, id: u32, x: u32, y: u32, w: u32, h: u32, stroke: &str, _points: &[(f64, f64)]) {
+fn shape_freeform(
+    xml: &mut String,
+    id: u32,
+    x: u32,
+    y: u32,
+    w: u32,
+    h: u32,
+    stroke: &str,
+    _points: &[(f64, f64)],
+) {
     xml.push_str(&format!(
         "<p:sp><p:nvSpPr><p:cNvPr id=\"{}\" name=\"c{id}\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>\
          <p:spPr><a:xfrm><a:off x=\"{}\" y=\"{}\"/><a:ext cx=\"{}\" cy=\"{}\"/></a:xfrm>\
@@ -81,7 +102,15 @@ fn bar(xml: &mut String, spec: &ChartSpec, x: u32, y: u32, w: u32, h: u32, a1: &
         let bh = ((v / max) * plot_h as f64).max(2.0) as u32;
         let bx = x + 8 + i as u32 * (bar_w + gap) + gap;
         let by = y + plot_h - bh;
-        shape_rect(xml, 100 + i as u32, bx, by, bar_w, bh, if i % 2 == 0 { a1 } else { a2 });
+        shape_rect(
+            xml,
+            100 + i as u32,
+            bx,
+            by,
+            bar_w,
+            bh,
+            if i % 2 == 0 { a1 } else { a2 },
+        );
     }
 }
 
@@ -135,7 +164,15 @@ fn scatter(xml: &mut String, spec: &ChartSpec, x: u32, y: u32, w: u32, h: u32, a
     for (i, v) in spec.values.iter().enumerate() {
         let px = x + 8 + i as u32 * (w - 16) / (n - 1);
         let py = y + plot_h - ((v / max) * plot_h as f64) as u32;
-        shape_rect(xml, 400 + i as u32, px.saturating_sub(3), py.saturating_sub(3), 6, 6, if i % 2 == 0 { a1 } else { a2 });
+        shape_rect(
+            xml,
+            400 + i as u32,
+            px.saturating_sub(3),
+            py.saturating_sub(3),
+            6,
+            6,
+            if i % 2 == 0 { a1 } else { a2 },
+        );
     }
 }
 

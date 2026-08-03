@@ -13,23 +13,41 @@ fn rects_for(layout_id: &str) -> Vec<RegionRect> {
 #[test]
 fn hero_quote_has_no_sections_or_metrics_region() {
     let r = rects_for("hero_quote");
-    assert!(!r.iter().any(|r| r.slot == Slot::Sections), "hero has no sections region");
-    assert!(!r.iter().any(|r| r.slot == Slot::Metrics), "hero has no metrics region");
-    assert!(r.iter().any(|r| r.slot == Slot::Title), "hero must have a title region");
+    assert!(
+        !r.iter().any(|r| r.slot == Slot::Sections),
+        "hero has no sections region"
+    );
+    assert!(
+        !r.iter().any(|r| r.slot == Slot::Metrics),
+        "hero has no metrics region"
+    );
+    assert!(
+        r.iter().any(|r| r.slot == Slot::Title),
+        "hero must have a title region"
+    );
 }
 
 #[test]
 fn kpi_snapshot_has_chart_and_metrics_regions() {
     let r = rects_for("kpi_snapshot");
-    assert!(r.iter().any(|r| r.slot == Slot::Metrics), "kpi must have metrics");
-    assert!(r.iter().any(|r| r.slot == Slot::Chart), "kpi must have a chart/gauge region");
+    assert!(
+        r.iter().any(|r| r.slot == Slot::Metrics),
+        "kpi must have metrics"
+    );
+    assert!(
+        r.iter().any(|r| r.slot == Slot::Chart),
+        "kpi must have a chart/gauge region"
+    );
 }
 
 #[test]
 fn timeline_has_all_slots() {
     let r = rects_for("process_timeline");
     for slot in [Slot::Title, Slot::Metrics, Slot::Sections, Slot::Footer] {
-        assert!(r.iter().any(|x| x.slot == slot), "timeline missing {slot:?}");
+        assert!(
+            r.iter().any(|x| x.slot == slot),
+            "timeline missing {slot:?}"
+        );
     }
 }
 
@@ -37,14 +55,18 @@ fn timeline_has_all_slots() {
 fn distinct_layouts_render_distinct_svg() {
     let router = InfographicIntentRouter::new();
     let hero = router.parse_and_route("Create a motivational hero quote poster in sunset");
-    let kpi = router.parse_and_route("Show a KPI snapshot overview: revenue: 124M, users: 12M in navy");
+    let kpi =
+        router.parse_and_route("Show a KPI snapshot overview: revenue: 124M, users: 12M in navy");
 
     assert_eq!(hero.layout_id, "hero_quote");
     assert_eq!(kpi.layout_id, "kpi_snapshot");
 
     let hero_svg = katsvg_engine::SVGVectorRenderer::render(&hero);
     let kpi_svg = katsvg_engine::SVGVectorRenderer::render(&kpi);
-    assert_ne!(hero_svg, kpi_svg, "distinct layouts must render differently");
+    assert_ne!(
+        hero_svg, kpi_svg,
+        "distinct layouts must render differently"
+    );
 
     // hero: large title only (no section cards with circles)
     assert!(!hero_svg.contains("<circle"), "hero has no section circles");

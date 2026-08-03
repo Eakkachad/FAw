@@ -4,8 +4,23 @@ use katsvg_engine::IconRenderer;
 
 #[test]
 fn corpus_has_icons() {
-    assert!(IconRenderer::count() >= 10, "expected >=10 icons, got {}", IconRenderer::count());
-    for name in ["zap", "cpu", "shield-check", "chart", "target", "users", "clock", "trending-up", "layers", "check-circle"] {
+    assert!(
+        IconRenderer::count() >= 10,
+        "expected >=10 icons, got {}",
+        IconRenderer::count()
+    );
+    for name in [
+        "zap",
+        "cpu",
+        "shield-check",
+        "chart",
+        "target",
+        "users",
+        "clock",
+        "trending-up",
+        "layers",
+        "check-circle",
+    ] {
         assert!(IconRenderer::has(name), "missing icon {name}");
     }
 }
@@ -29,7 +44,11 @@ fn unknown_icon_falls_back_gracefully() {
 fn paths_split_multi_shape_icons() {
     // "cpu" has multiple M commands -> multiple paths.
     let paths = IconRenderer::paths("cpu");
-    assert!(paths.len() >= 2, "cpu should split into multiple paths, got {}", paths.len());
+    assert!(
+        paths.len() >= 2,
+        "cpu should split into multiple paths, got {}",
+        paths.len()
+    );
 }
 
 #[test]
@@ -39,5 +58,8 @@ fn icon_renders_into_metric_cards() {
     // metrics extract with a k:v pair -> icon present in SVG output
     let spec = r.parse_and_route("Q3 KPI dashboard: revenue: 124M, users: 12M in navy");
     let svg = katsvg_engine::SVGVectorRenderer::render(&spec);
-    assert!(svg.contains("stroke-linecap"), "SVG must contain icon stroke markup");
+    assert!(
+        svg.contains("stroke-linecap"),
+        "SVG must contain icon stroke markup"
+    );
 }

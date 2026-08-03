@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 //! Palette Library Registry (`katSVG Palettes`).
 //!
 //! Loads palette entries from the embedded `corpus/palettes/` JSON corpus into a
@@ -112,7 +113,13 @@ impl PaletteRegistry {
             };
         }
         let (bg, card_bg, a1, a2, text) = theme.fallback_colors();
-        PaletteColors { bg, card_bg, accent1: a1, accent2: a2, text }
+        PaletteColors {
+            bg,
+            card_bg,
+            accent1: a1,
+            accent2: a2,
+            text,
+        }
     }
 }
 

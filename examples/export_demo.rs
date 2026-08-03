@@ -18,7 +18,10 @@ fn main() {
 
     let duration = start.elapsed();
 
-    println!("⚡ Total Latency: {:.3?} ms", duration.as_secs_f64() * 1000.0);
+    println!(
+        "⚡ Total Latency: {:.3?} ms",
+        duration.as_secs_f64() * 1000.0
+    );
     println!("📄 SVG Path: {:?}", result.svg_path);
     println!("📕 PDF Path: {:?}", result.pdf_path);
     println!("🖼️ PNG Path: {:?}", result.png_path);

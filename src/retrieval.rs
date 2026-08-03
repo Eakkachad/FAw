@@ -35,9 +35,9 @@ pub trait RetrievalPipeline: Send + Sync {
 /// English stop words excluded from retrieval features (avoid false matches
 /// from function words common to every description).
 const STOP_WORDS: &[&str] = &[
-    "a", "an", "the", "and", "or", "of", "to", "in", "on", "for", "with", "by",
-    "at", "from", "as", "into", "via", "per", "each", "is", "are", "be", "been",
-    "it", "its", "this", "that", "these", "those", "their", "they",
+    "a", "an", "the", "and", "or", "of", "to", "in", "on", "for", "with", "by", "at", "from", "as",
+    "into", "via", "per", "each", "is", "are", "be", "been", "it", "its", "this", "that", "these",
+    "those", "their", "they",
 ];
 
 /// Lowercased alphanumeric word tokens, excluding stop words.
@@ -95,15 +95,19 @@ impl RetrievalPipeline for TagRetriever {
             .enumerate()
             .map(|(i, l)| {
                 let tags: std::collections::HashSet<&String> = l.tags.iter().collect();
-                let hits = tags
-                    .iter()
-                    .filter(|t| qtokens.contains(t.as_str()))
-                    .count();
+                let hits = tags.iter().filter(|t| qtokens.contains(t.as_str())).count();
                 let denom = tags.len().max(1) as f32;
-                RetrievedLayout { index: i, relevance: hits as f32 / denom }
+                RetrievedLayout {
+                    index: i,
+                    relevance: hits as f32 / denom,
+                }
             })
             .collect();
-        ranked.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap_or(std::cmp::Ordering::Equal));
+        ranked.sort_by(|a, b| {
+            b.relevance
+                .partial_cmp(&a.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         ranked
     }
 }
@@ -124,7 +128,11 @@ impl EmbeddingRetriever {
         Self
     }
 
-    fn embed(&self, feats: &[String], vocab: &std::collections::HashMap<String, usize>) -> Vec<f32> {
+    fn embed(
+        &self,
+        feats: &[String],
+        vocab: &std::collections::HashMap<String, usize>,
+    ) -> Vec<f32> {
         let mut v = vec![0.0f32; vocab.len()];
         for f in feats {
             if let Some(&i) = vocab.get(f) {
@@ -173,11 +181,18 @@ impl RetrievalPipeline for EmbeddingRetriever {
             .enumerate()
             .map(|(i, l)| {
                 let cvec = self.embed(&candidate_features(l), &vocab);
-                RetrievedLayout { index: i, relevance: self.cosine(&qvec, &cvec) }
+                RetrievedLayout {
+                    index: i,
+                    relevance: self.cosine(&qvec, &cvec),
+                }
             })
             .collect();
         // Stable sort (vocabulary order is fixed by corpus order).
-        ranked.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap_or(std::cmp::Ordering::Equal));
+        ranked.sort_by(|a, b| {
+            b.relevance
+                .partial_cmp(&a.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         ranked
     }
 }

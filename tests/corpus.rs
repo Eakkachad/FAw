@@ -2,13 +2,14 @@
 //! `schemas/layout_corpus.schema.json` and instantiates a valid
 //! `InfographicLayoutSpec` (dry-run) with bounds the `ConstraintPruner` accepts.
 
-use katsvg_engine::router::{AspectRatio, LayoutType, PaletteTheme};
 use katsvg_engine::InfographicLayoutSpec;
+use katsvg_engine::router::{AspectRatio, LayoutType, PaletteTheme};
 use std::fs;
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LayoutSeed {
+    #[allow(dead_code)]
     id: String,
     layout_type: String,
     regions: Vec<RegionSeed>,
@@ -18,11 +19,13 @@ struct LayoutSeed {
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RegionSeed {
+    #[allow(dead_code)]
     id: String,
     x: f64,
     y: f64,
     width: f64,
     height: f64,
+    #[allow(dead_code)]
     slot: String,
 }
 
@@ -61,7 +64,8 @@ fn corpus_has_ten_seed_layouts() {
 fn every_layout_instantiates_a_valid_spec() {
     for (name, path) in corpus_paths() {
         let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{name}: {e}"));
-        let seed: LayoutSeed = serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{name}: invalid JSON: {e}"));
+        let seed: LayoutSeed =
+            serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{name}: invalid JSON: {e}"));
 
         // LayoutType must be a known enum value (structural schema check)
         let layout_type = match seed.layout_type.as_str() {
@@ -113,8 +117,17 @@ fn every_layout_instantiates_a_valid_spec() {
         let max_metrics = seed.constraints.max_metrics.unwrap_or(4);
         let max_sections = seed.constraints.max_sections.unwrap_or(8);
         let max_title = seed.constraints.max_title_length.unwrap_or(80);
-        assert!(spec.metrics.len() <= max_metrics, "{name}: metrics exceed layout bound");
-        assert!(spec.sections.len() <= max_sections, "{name}: sections exceed layout bound");
-        assert!(spec.title.len() <= max_title, "{name}: title exceeds layout bound");
+        assert!(
+            spec.metrics.len() <= max_metrics,
+            "{name}: metrics exceed layout bound"
+        );
+        assert!(
+            spec.sections.len() <= max_sections,
+            "{name}: sections exceed layout bound"
+        );
+        assert!(
+            spec.title.len() <= max_title,
+            "{name}: title exceeds layout bound"
+        );
     }
 }

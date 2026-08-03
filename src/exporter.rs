@@ -5,11 +5,11 @@
 //! - **PDF**  — valid PDF 1.7 stream (base-14 Helvetica)
 //! - **PNG**  — valid PNG (signature + IHDR + IDAT + IEND, CRC-checked) via `png`
 //! - **PPTX** — valid OOXML ZIP package (`[Content_Types].xml`, rels, slides,
-//!             slideMaster, slideLayout, theme, docProps)
+//!   slideMaster, slideLayout, theme, docProps)
 
 use crate::router::{InfographicLayoutSpec, SVGVectorRenderer};
 use std::fs::{self, File};
-use std::io::{Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -43,9 +43,17 @@ impl PDFVectorExporter {
 
         // F2: determine whether we need the embedded Thai (Noto Sans Thai) font.
         let needs_thai = crate::font::has_non_ascii(&spec.title)
-            || spec.subtitle.as_deref().is_some_and(crate::font::has_non_ascii)
-            || spec.metrics.iter().any(|m| crate::font::has_non_ascii(&m.label) || crate::font::has_non_ascii(&m.value))
-            || spec.sections.iter().any(|s| crate::font::has_non_ascii(&s.title));
+            || spec
+                .subtitle
+                .as_deref()
+                .is_some_and(crate::font::has_non_ascii)
+            || spec.metrics.iter().any(|m| {
+                crate::font::has_non_ascii(&m.label) || crate::font::has_non_ascii(&m.value)
+            })
+            || spec
+                .sections
+                .iter()
+                .any(|s| crate::font::has_non_ascii(&s.title));
 
         let mut content_stream = String::with_capacity(4096);
 
@@ -61,17 +69,42 @@ impl PDFVectorExporter {
         ));
 
         let title_fit = pdf_fit(&spec.title, 22.0, width_pt as f32 - 120.0);
-        pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 22.0, text_r, text_g, text_b, 68.0, y_top + 26.0, &title_fit);
+        pdf_emit_text(
+            &mut content_stream,
+            spec,
+            needs_thai,
+            "F1",
+            22.0,
+            text_r,
+            text_g,
+            text_b,
+            68.0,
+            y_top + 26.0,
+            &title_fit,
+        );
 
         if let Some(sub) = &spec.subtitle {
-            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 11.0, 0.6, 0.6, 0.6, 68.0, y_top + 8.0, sub);
+            pdf_emit_text(
+                &mut content_stream,
+                spec,
+                needs_thai,
+                "F1",
+                11.0,
+                0.6,
+                0.6,
+                0.6,
+                68.0,
+                y_top + 8.0,
+                sub,
+            );
         }
 
         let card_y = height_pt as f32 - 190.0;
         let card_w = if spec.metrics.is_empty() {
             0.0
         } else {
-            (width_pt as f32 - 80.0 - (spec.metrics.len() as f32 - 1.0) * 16.0) / spec.metrics.len() as f32
+            (width_pt as f32 - 80.0 - (spec.metrics.len() as f32 - 1.0) * 16.0)
+                / spec.metrics.len() as f32
         };
         for (i, m) in spec.metrics.iter().enumerate() {
             let x = 40.0 + i as f32 * (card_w + 16.0);
@@ -89,12 +122,45 @@ impl PDFVectorExporter {
                 x, card_y, card_w
             ));
 
-            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 18.0, acc_r, acc_g, acc_b, x + 16.0, card_y + 44.0, &m.value);
+            pdf_emit_text(
+                &mut content_stream,
+                spec,
+                needs_thai,
+                "F1",
+                18.0,
+                acc_r,
+                acc_g,
+                acc_b,
+                x + 16.0,
+                card_y + 44.0,
+                &m.value,
+            );
 
-            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 9.0, 0.6, 0.6, 0.6, x + 16.0, card_y + 22.0, &m.label.to_uppercase());
+            pdf_emit_text(
+                &mut content_stream,
+                spec,
+                needs_thai,
+                "F1",
+                9.0,
+                0.6,
+                0.6,
+                0.6,
+                x + 16.0,
+                card_y + 22.0,
+                &m.label.to_uppercase(),
+            );
 
             // Icon glyph at top-right of the card (F3)
-            crate::icon_raster::draw_icon_pdf(&mut content_stream, x + card_w - 20.0, card_y + 62.0, 1.5, a2r, a2g, a2b, &m.icon);
+            crate::icon_raster::draw_icon_pdf(
+                &mut content_stream,
+                x + card_w - 20.0,
+                card_y + 62.0,
+                1.5,
+                a2r,
+                a2g,
+                a2b,
+                &m.icon,
+            );
         }
 
         // Chart region (SVG y 240..500 → PDF bottom-left y = height-500, h=260) — D3
@@ -143,11 +209,39 @@ impl PDFVectorExporter {
                 y, sec_w, sec_h
             ));
 
-            let step_label = format!("{}. {}", s.step_number, pdf_fit(&s.title, 13.0, sec_w - 130.0));
-            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 13.0, text_r, text_g, text_b, 104.0, y + 54.0, &step_label);
+            let step_label = format!(
+                "{}. {}",
+                s.step_number,
+                pdf_fit(&s.title, 13.0, sec_w - 130.0)
+            );
+            pdf_emit_text(
+                &mut content_stream,
+                spec,
+                needs_thai,
+                "F1",
+                13.0,
+                text_r,
+                text_g,
+                text_b,
+                104.0,
+                y + 54.0,
+                &step_label,
+            );
 
             let desc = pdf_fit(&s.description, 10.0, sec_w - 130.0);
-            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 10.0, 0.6, 0.6, 0.6, 104.0, y + 32.0, &desc);
+            pdf_emit_text(
+                &mut content_stream,
+                spec,
+                needs_thai,
+                "F1",
+                10.0,
+                0.6,
+                0.6,
+                0.6,
+                104.0,
+                y + 32.0,
+                &desc,
+            );
         }
 
         let stream_bytes = content_stream.as_bytes();
@@ -163,7 +257,9 @@ impl PDFVectorExporter {
         pdf.extend_from_slice(b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
 
         xref_offsets.push(pdf.len());
-        pdf.extend_from_slice(b"2 0 obj\n<< /Type /Pages /Kinds [/PDF] /Count 1 /Kids [3 0 R] >>\nendobj\n");
+        pdf.extend_from_slice(
+            b"2 0 obj\n<< /Type /Pages /Kinds [/PDF] /Count 1 /Kids [3 0 R] >>\nendobj\n",
+        );
 
         xref_offsets.push(pdf.len());
         pdf.extend_from_slice(format!(
@@ -173,24 +269,24 @@ impl PDFVectorExporter {
         ).as_bytes());
 
         xref_offsets.push(pdf.len());
-        pdf.extend_from_slice(format!("4 0 obj\n<< /Length {} >>\nstream\n", stream_len).as_bytes());
+        pdf.extend_from_slice(
+            format!("4 0 obj\n<< /Length {} >>\nstream\n", stream_len).as_bytes(),
+        );
         pdf.extend_from_slice(stream_bytes);
         pdf.extend_from_slice(b"\nendstream\nendobj\n");
 
         xref_offsets.push(pdf.len());
-        pdf.extend_from_slice(b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n");
+        pdf.extend_from_slice(
+            b"5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+        );
 
         // F2: embedded Noto Sans Thai as a Type0 CID font (only when Thai text present)
         if needs_thai {
             xref_offsets.push(pdf.len());
-            pdf.extend_from_slice(format!(
-                "6 0 obj\n<< /Type /Font /Subtype /Type0 /BaseFont /NotoSansThai /Encoding /Identity-H /DescendantFonts [7 0 R] >>\nendobj\n"
-            ).as_bytes());
+            pdf.extend_from_slice("6 0 obj\n<< /Type /Font /Subtype /Type0 /BaseFont /NotoSansThai /Encoding /Identity-H /DescendantFonts [7 0 R] >>\nendobj\n".to_string().as_bytes());
 
             xref_offsets.push(pdf.len());
-            pdf.extend_from_slice(format!(
-                "7 0 obj\n<< /Type /Font /Subtype /CIDFontType2 /BaseFont /NotoSansThai /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 8 0 R /CIDToGIDMap /Identity /DW 1000 >>\nendobj\n"
-            ).as_bytes());
+            pdf.extend_from_slice("7 0 obj\n<< /Type /Font /Subtype /CIDFontType2 /BaseFont /NotoSansThai /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 8 0 R /CIDToGIDMap /Identity /DW 1000 >>\nendobj\n".to_string().as_bytes());
 
             xref_offsets.push(pdf.len());
             pdf.extend_from_slice(format!(
@@ -201,7 +297,9 @@ impl PDFVectorExporter {
 
             xref_offsets.push(pdf.len());
             let font_bytes = crate::pdf_font::font_file_bytes();
-            pdf.extend_from_slice(format!("9 0 obj\n<< /Length {} >>\nstream\n", font_bytes.len()).as_bytes());
+            pdf.extend_from_slice(
+                format!("9 0 obj\n<< /Length {} >>\nstream\n", font_bytes.len()).as_bytes(),
+            );
             pdf.extend_from_slice(font_bytes);
             pdf.extend_from_slice(b"\nendstream\nendobj\n");
         }
@@ -213,10 +311,14 @@ impl PDFVectorExporter {
             pdf.extend_from_slice(format!("{:010} 00000 n \n", offset).as_bytes());
         }
 
-        pdf.extend_from_slice(format!(
-            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{}\n%%EOF\n",
-            xref_offsets.len(), xref_start
-        ).as_bytes());
+        pdf.extend_from_slice(
+            format!(
+                "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{}\n%%EOF\n",
+                xref_offsets.len(),
+                xref_start
+            )
+            .as_bytes(),
+        );
 
         pdf
     }
@@ -251,7 +353,16 @@ impl PNGRasterExporter {
 
         // Title + subtitle text
         let title_fit = renderer.truncate_to_fit(28.0, (w - 80) as f32, &spec.title);
-        renderer.draw_text(&mut px, w, h, 60.0, 78.0, 28.0, (text_r, text_g, text_b), &title_fit);
+        renderer.draw_text(
+            &mut px,
+            w,
+            h,
+            60.0,
+            78.0,
+            28.0,
+            (text_r, text_g, text_b),
+            &title_fit,
+        );
         if let Some(sub) = &spec.subtitle {
             renderer.draw_text(&mut px, w, h, 60.0, 100.0, 14.0, (154, 163, 175), sub);
         }
@@ -267,14 +378,49 @@ impl PNGRasterExporter {
                 break;
             }
             let x = 40 + i as u32 * (card_w + 16);
-            fill_rect(&mut px, w, x as usize, 130, (x + card_w) as usize, 210, (card_r, card_g, card_b));
+            fill_rect(
+                &mut px,
+                w,
+                x as usize,
+                130,
+                (x + card_w) as usize,
+                210,
+                (card_r, card_g, card_b),
+            );
             // metric value + label (real text now, P5)
-            renderer.draw_text(&mut px, w, h, (x + 16) as f32, 172.0, 24.0, (acc_r, acc_g, acc_b), &m.value);
-            renderer.draw_text(&mut px, w, h, (x + 16) as f32, 194.0, 11.0, (154, 163, 175), &m.label.to_uppercase());
+            renderer.draw_text(
+                &mut px,
+                w,
+                h,
+                (x + 16) as f32,
+                172.0,
+                24.0,
+                (acc_r, acc_g, acc_b),
+                &m.value,
+            );
+            renderer.draw_text(
+                &mut px,
+                w,
+                h,
+                (x + 16) as f32,
+                194.0,
+                11.0,
+                (154, 163, 175),
+                &m.label.to_uppercase(),
+            );
             // Icon glyph at top-right of the card (F3)
             let icon_cx = (x + card_w - 20) as usize;
             let icon_cy = 160usize;
-            crate::icon_raster::draw_icon_raster(&mut px, w, h, icon_cx, icon_cy, 2, (acc2_r, acc2_g, acc2_b), &m.icon);
+            crate::icon_raster::draw_icon_raster(
+                &mut px,
+                w,
+                h,
+                icon_cx,
+                icon_cy,
+                2,
+                (acc2_r, acc2_g, acc2_b),
+                &m.icon,
+            );
         }
 
         // Chart region (mirrors SVG chart at y=240, height 260) — D1 parity
@@ -308,15 +454,50 @@ impl PNGRasterExporter {
                 fill_rect(&mut px, w, 70, line_y1, 74, line_y2, (acc_r, acc_g, acc_b));
             }
 
-            fill_rect(&mut px, w, 40, y, w - 40, y + sec_h, (card_r, card_g, card_b));
+            fill_rect(
+                &mut px,
+                w,
+                40,
+                y,
+                w - 40,
+                y + sec_h,
+                (card_r, card_g, card_b),
+            );
             // step number circle + text
             fill_rect(&mut px, w, 16, y + 26, 46, y + 46, (acc_r, acc_g, acc_b));
-            renderer.draw_text(&mut px, w, h, (24.5) as f32, y as f32 + 44.0, 13.0, (bg_r, bg_g, bg_b), &s.step_number.to_string());
+            renderer.draw_text(
+                &mut px,
+                w,
+                h,
+                24.5_f32,
+                y as f32 + 44.0,
+                13.0,
+                (bg_r, bg_g, bg_b),
+                &s.step_number.to_string(),
+            );
             // title + description
             let sec_title = renderer.truncate_to_fit(16.0, (w - 110) as f32, &s.title);
-            renderer.draw_text(&mut px, w, h, 60.0, y as f32 + 38.0, 16.0, (text_r, text_g, text_b), &sec_title);
+            renderer.draw_text(
+                &mut px,
+                w,
+                h,
+                60.0,
+                y as f32 + 38.0,
+                16.0,
+                (text_r, text_g, text_b),
+                &sec_title,
+            );
             let sec_desc = renderer.truncate_to_fit(12.0, (w - 110) as f32, &s.description);
-            renderer.draw_text(&mut px, w, h, 60.0, y as f32 + 60.0, 12.0, (154, 163, 175), &sec_desc);
+            renderer.draw_text(
+                &mut px,
+                w,
+                h,
+                60.0,
+                y as f32 + 60.0,
+                12.0,
+                (154, 163, 175),
+                &sec_desc,
+            );
         }
 
         let mut out = Vec::with_capacity(px.len() / 3 + 1024);
@@ -331,7 +512,15 @@ impl PNGRasterExporter {
     }
 }
 
-fn fill_rect(buf: &mut [u8], w: usize, x0: usize, y0: usize, x1: usize, y1: usize, rgb: (u8, u8, u8)) {
+fn fill_rect(
+    buf: &mut [u8],
+    w: usize,
+    x0: usize,
+    y0: usize,
+    x1: usize,
+    y1: usize,
+    rgb: (u8, u8, u8),
+) {
     let x1 = x1.min(w);
     let (r, g, b) = rgb;
     for y in y0..y1 {
@@ -368,7 +557,10 @@ impl PPTXPresentationExporter {
         slide_xml.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n");
         slide_xml.push_str("<p:sld xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">\n");
         slide_xml.push_str("  <p:cSld>\n    <p:bg>\n      <p:bgPr>\n");
-        slide_xml.push_str(&format!("        <a:solidFill><a:srgbClr val=\"{}\"/></a:solidFill>\n", bg_hex.trim_start_matches('#')));
+        slide_xml.push_str(&format!(
+            "        <a:solidFill><a:srgbClr val=\"{}\"/></a:solidFill>\n",
+            bg_hex.trim_start_matches('#')
+        ));
         slide_xml.push_str("      </p:bgPr>\n    </p:bg>\n    <p:spTree>\n");
         slide_xml.push_str("      <p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>\n");
 
@@ -410,9 +602,7 @@ impl PPTXPresentationExporter {
         // Chart shapes (native PPTX vectors, D2 parity)
         if let Some(chart) = &spec.chart {
             let (_bg, _cbg, a1, a2, tx) = spec.theme.colors();
-            let shapes = crate::chart_pptx::chart_shapes_pptx(
-                chart, 40, 240, 720, 260, a1, a2, tx,
-            );
+            let shapes = crate::chart_pptx::chart_shapes_pptx(chart, 40, 240, 720, 260, a1, a2, tx);
             slide_xml.push_str(&shapes);
         }
 
@@ -559,13 +749,28 @@ impl PPTXPresentationExporter {
             ("docProps/app.xml", app_xml.as_bytes()),
             ("docProps/core.xml", core_xml.as_bytes()),
             ("ppt/presentation.xml", presentation_xml.as_bytes()),
-            ("ppt/_rels/presentation.xml.rels", presentation_rels.as_bytes()),
+            (
+                "ppt/_rels/presentation.xml.rels",
+                presentation_rels.as_bytes(),
+            ),
             ("ppt/slides/slide1.xml", slide_xml.as_bytes()),
             ("ppt/slides/_rels/slide1.xml.rels", slide_rels.as_bytes()),
-            ("ppt/slideLayouts/slideLayout1.xml", slide_layout_xml.as_bytes()),
-            ("ppt/slideLayouts/_rels/slideLayout1.xml.rels", slide_layout_rels.as_bytes()),
-            ("ppt/slideMasters/slideMaster1.xml", slide_master_xml.as_bytes()),
-            ("ppt/slideMasters/_rels/slideMaster1.xml.rels", slide_master_rels.as_bytes()),
+            (
+                "ppt/slideLayouts/slideLayout1.xml",
+                slide_layout_xml.as_bytes(),
+            ),
+            (
+                "ppt/slideLayouts/_rels/slideLayout1.xml.rels",
+                slide_layout_rels.as_bytes(),
+            ),
+            (
+                "ppt/slideMasters/slideMaster1.xml",
+                slide_master_xml.as_bytes(),
+            ),
+            (
+                "ppt/slideMasters/_rels/slideMaster1.xml.rels",
+                slide_master_rels.as_bytes(),
+            ),
             ("ppt/theme/theme1.xml", theme_xml.as_bytes()),
             ("ppt/theme/_rels/theme1.xml.rels", theme_rels.as_bytes()),
         ];
@@ -644,7 +849,11 @@ fn crc32_table() -> [u32; 256] {
     for (i, slot) in table.iter_mut().enumerate() {
         let mut c = i as u32;
         for _ in 0..8 {
-            c = if c & 1 != 0 { 0xEDB8_8320 ^ (c >> 1) } else { c >> 1 };
+            c = if c & 1 != 0 {
+                0xEDB8_8320 ^ (c >> 1)
+            } else {
+                c >> 1
+            };
         }
         *slot = c;
     }
@@ -663,7 +872,10 @@ fn crc32(table: &[u32; 256], data: &[u8]) -> u32 {
 pub struct ExportManager;
 
 impl ExportManager {
-    pub fn export_all(spec: &InfographicLayoutSpec, output_dir: &Path) -> Result<ExportResult, std::io::Error> {
+    pub fn export_all(
+        spec: &InfographicLayoutSpec,
+        output_dir: &Path,
+    ) -> Result<ExportResult, std::io::Error> {
         let start_time = Instant::now();
 
         if !output_dir.exists() {
@@ -733,7 +945,10 @@ fn hex_to_rgb_u8(hex: &str) -> (u8, u8, u8) {
 }
 
 fn sanitize_pdf_str(input: &str) -> String {
-    input.replace('\\', "\\\\").replace('(', "\\(").replace(')', "\\)")
+    input
+        .replace('\\', "\\\\")
+        .replace('(', "\\(")
+        .replace(')', "\\)")
 }
 
 /// Truncate text to a pixel budget using the embedded font width measurement
@@ -777,7 +992,12 @@ fn pdf_emit_text(
     } else {
         stream.push_str(&format!("/{font_ref} {size} Tf\n"));
         stream.push_str(&format!("{:.3} {:.3} {:.3} rg\n", r, g, b));
-        stream.push_str(&format!("{:.1} {:.1} Td\n({}) Tj\n", x, y, sanitize_pdf_str(text)));
+        stream.push_str(&format!(
+            "{:.1} {:.1} Td\n({}) Tj\n",
+            x,
+            y,
+            sanitize_pdf_str(text)
+        ));
     }
     stream.push_str("ET\n");
     let _ = spec;

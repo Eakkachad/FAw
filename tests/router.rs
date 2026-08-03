@@ -1,8 +1,8 @@
 //! S3 gate tests: corpus-driven routing, real ConstraintPruner clamping,
 //! deterministic output, and adversarial-prompt safety (0.0% invalid emissions).
 
-use katsvg_engine::router::LayoutType;
 use katsvg_engine::InfographicIntentRouter;
+use katsvg_engine::router::LayoutType;
 
 fn router() -> InfographicIntentRouter {
     InfographicIntentRouter::new()
@@ -57,14 +57,21 @@ fn step_count_extracted_from_prompt() {
     // timeline layout allows 2..=8 sections; prompt says 4 → clamp must not invent
     assert!(spec.sections.len() <= 8);
     assert!(spec.sections.len() >= 2);
-    assert_eq!(spec.sections.len(), 4, "explicit 4-step count must produce 4 sections");
+    assert_eq!(
+        spec.sections.len(),
+        4,
+        "explicit 4-step count must produce 4 sections"
+    );
 }
 
 #[test]
 fn title_derived_from_prompt_not_invented() {
     let r = router();
     let spec = r.parse_and_route("Quarterly Revenue Growth Report in navy");
-    assert!(spec.title.starts_with("QUARTERLY"), "title must come from prompt");
+    assert!(
+        spec.title.starts_with("QUARTERLY"),
+        "title must come from prompt"
+    );
 }
 
 #[test]
@@ -72,15 +79,24 @@ fn aspect_ratio_classified_and_bounded() {
     let r = router();
     let banner = r.parse_and_route("Create a banner timeline infographic in warm mode");
     // banner → Banner16_9; ProcessTimeline allows it → preserved
-    assert_eq!(banner.aspect_ratio, katsvg_engine::router::AspectRatio::Banner16_9);
+    assert_eq!(
+        banner.aspect_ratio,
+        katsvg_engine::router::AspectRatio::Banner16_9
+    );
 
     let square = r.parse_and_route("Make a square social post in coral");
-    assert_eq!(square.aspect_ratio, katsvg_engine::router::AspectRatio::Square1_1);
+    assert_eq!(
+        square.aspect_ratio,
+        katsvg_engine::router::AspectRatio::Square1_1
+    );
 
     // Pruner guards: a disallowed aspect is deterministically clamped to the
     // layout's first allowed ratio (never emitted invalid).
     let clamped = r.parse_and_route("Create a banner mindmap in dark mode");
-    assert_eq!(clamped.aspect_ratio, katsvg_engine::router::AspectRatio::A4Poster);
+    assert_eq!(
+        clamped.aspect_ratio,
+        katsvg_engine::router::AspectRatio::A4Poster
+    );
 }
 
 #[test]
@@ -118,14 +134,24 @@ fn adversarial_prompts_never_panic_or_exceed_bounds() {
     for prompt in prompts {
         let spec = r.parse_and_route(prompt);
         // Structural bounds must always hold (never invalid emission)
-        assert!(spec.sections.len() <= 8, "prompt {prompt:?}: sections {} > 8", spec.sections.len());
-        assert!(spec.metrics.len() <= 6, "prompt {prompt:?}: metrics {} > 6", spec.metrics.len());
+        assert!(
+            spec.sections.len() <= 8,
+            "prompt {prompt:?}: sections {} > 8",
+            spec.sections.len()
+        );
+        assert!(
+            spec.metrics.len() <= 6,
+            "prompt {prompt:?}: metrics {} > 6",
+            spec.metrics.len()
+        );
         assert!(spec.title.len() <= 80, "prompt {prompt:?}: title too long");
         // Values bound into metrics must originate from the prompt
         for m in &spec.metrics {
-            assert!(prompt.to_lowercase().contains(&m.value.to_lowercase())
-                || m.value.starts_with('<'),
-                "metric value {:?} not present in prompt {prompt:?}", m.value);
+            assert!(
+                prompt.to_lowercase().contains(&m.value.to_lowercase()) || m.value.starts_with('<'),
+                "metric value {:?} not present in prompt {prompt:?}",
+                m.value
+            );
         }
     }
 }

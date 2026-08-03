@@ -35,7 +35,15 @@ pub enum PaletteTheme {
 
 impl PaletteTheme {
     /// Hardcoded fallback colors (used only if the corpus registry is empty).
-    pub fn fallback_colors(&self) -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
+    pub fn fallback_colors(
+        &self,
+    ) -> (
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+    ) {
         match self {
             PaletteTheme::TechDark => ("#0B0F19", "#111827", "#3B82F6", "#10B981", "#F9FAFB"),
             PaletteTheme::FinancialNavy => ("#0F172A", "#1E293B", "#6366F1", "#06B6D4", "#F8FAFC"),
@@ -49,9 +57,20 @@ impl PaletteTheme {
     }
 
     /// Theme color roles resolved through the embedded palette corpus.
-    pub fn colors(&self) -> (&'static str, &'static str, &'static str, &'static str, &'static str) {
-        static REGISTRY: std::sync::OnceLock<crate::palette::PaletteRegistry> = std::sync::OnceLock::new();
-        let c = REGISTRY.get_or_init(crate::palette::PaletteRegistry::new).colors(*self);
+    pub fn colors(
+        &self,
+    ) -> (
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+        &'static str,
+    ) {
+        static REGISTRY: std::sync::OnceLock<crate::palette::PaletteRegistry> =
+            std::sync::OnceLock::new();
+        let c = REGISTRY
+            .get_or_init(crate::palette::PaletteRegistry::new)
+            .colors(*self);
         (c.bg, c.card_bg, c.accent1, c.accent2, c.text)
     }
 }
@@ -184,9 +203,15 @@ pub struct LayoutConstraints {
     pub allowed_aspect_ratios: Vec<AspectRatio>,
 }
 
-fn default_max_metrics() -> usize { 4 }
-fn default_max_sections() -> usize { 8 }
-fn default_max_title() -> usize { 80 }
+fn default_max_metrics() -> usize {
+    4
+}
+fn default_max_sections() -> usize {
+    8
+}
+fn default_max_title() -> usize {
+    80
+}
 
 /// A layout archetype retrieved from the corpus.
 #[derive(Debug, Clone, Deserialize)]
@@ -279,15 +304,29 @@ impl InfographicConstraintPruner {
             ));
         }
         if spec.title.len() > c.max_title_length {
-            out.push(format!("title len {} > max {}", spec.title.len(), c.max_title_length));
+            out.push(format!(
+                "title len {} > max {}",
+                spec.title.len(),
+                c.max_title_length
+            ));
         }
-        if !c.allowed_aspect_ratios.is_empty() && !c.allowed_aspect_ratios.contains(&spec.aspect_ratio) {
-            out.push(format!("aspect {:?} not allowed for layout", spec.aspect_ratio));
+        if !c.allowed_aspect_ratios.is_empty()
+            && !c.allowed_aspect_ratios.contains(&spec.aspect_ratio)
+        {
+            out.push(format!(
+                "aspect {:?} not allowed for layout",
+                spec.aspect_ratio
+            ));
         }
-        if let Some(footer) = &spec.footer_note {
-            if c.max_footer_length > 0 && footer.len() > c.max_footer_length {
-                out.push(format!("footer len {} > max {}", footer.len(), c.max_footer_length));
-            }
+        if let Some(footer) = &spec.footer_note
+            && c.max_footer_length > 0
+            && footer.len() > c.max_footer_length
+        {
+            out.push(format!(
+                "footer len {} > max {}",
+                footer.len(),
+                c.max_footer_length
+            ));
         }
         out
     }
@@ -298,13 +337,15 @@ impl InfographicConstraintPruner {
         spec.metrics.truncate(c.max_metrics);
         spec.sections.truncate(c.max_sections);
         spec.title = truncate_chars(&spec.title, c.max_title_length);
-        if !c.allowed_aspect_ratios.is_empty() && !c.allowed_aspect_ratios.contains(&spec.aspect_ratio) {
+        if !c.allowed_aspect_ratios.is_empty()
+            && !c.allowed_aspect_ratios.contains(&spec.aspect_ratio)
+        {
             spec.aspect_ratio = c.allowed_aspect_ratios[0];
         }
-        if let Some(footer) = &mut spec.footer_note {
-            if c.max_footer_length > 0 {
-                *footer = truncate_chars(footer, c.max_footer_length);
-            }
+        if let Some(footer) = &mut spec.footer_note
+            && c.max_footer_length > 0
+        {
+            *footer = truncate_chars(footer, c.max_footer_length);
         }
     }
 }
@@ -336,6 +377,12 @@ pub struct InfographicIntentRouter {
     retriever: Box<dyn crate::retrieval::RetrievalPipeline>,
 }
 
+impl Default for InfographicIntentRouter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InfographicIntentRouter {
     pub fn new() -> Self {
         Self {
@@ -355,7 +402,10 @@ impl InfographicIntentRouter {
     }
 
     /// Swap the retrieval backend (e.g., Tag baseline vs embedding).
-    pub fn with_retriever(mut self, retriever: Box<dyn crate::retrieval::RetrievalPipeline>) -> Self {
+    pub fn with_retriever(
+        mut self,
+        retriever: Box<dyn crate::retrieval::RetrievalPipeline>,
+    ) -> Self {
         self.retriever = retriever;
         self
     }
@@ -379,33 +429,45 @@ impl InfographicIntentRouter {
         let aspect_ratio = classify_aspect_ratio(&prompt_lower);
 
         // Retrieve the best matching layout definition from the corpus.
-        let layout = self.retrieve(&prompt_lower, aspect_ratio).cloned().unwrap_or_else(|| {
-            let mut d = load_corpus().pop().unwrap_or_else(|| LayoutDef {
-                id: "default_timeline".to_string(),
-                layout_type: LayoutType::ProcessTimeline,
-                description: None,
-                regions: vec![],
-                constraints: LayoutConstraints {
-                    max_metrics: default_max_metrics(),
-                    min_metrics: 0,
-                    max_sections: default_max_sections(),
-                    min_sections: 1,
-                    max_title_length: default_max_title(),
-                    max_footer_length: 0,
-                    allowed_aspect_ratios: vec![AspectRatio::A4Poster, AspectRatio::Banner16_9, AspectRatio::Square1_1],
-                },
-                tags: vec![],
+        let layout = self
+            .retrieve(&prompt_lower, aspect_ratio)
+            .cloned()
+            .unwrap_or_else(|| {
+                let mut d = load_corpus().pop().unwrap_or_else(|| LayoutDef {
+                    id: "default_timeline".to_string(),
+                    layout_type: LayoutType::ProcessTimeline,
+                    description: None,
+                    regions: vec![],
+                    constraints: LayoutConstraints {
+                        max_metrics: default_max_metrics(),
+                        min_metrics: 0,
+                        max_sections: default_max_sections(),
+                        min_sections: 1,
+                        max_title_length: default_max_title(),
+                        max_footer_length: 0,
+                        allowed_aspect_ratios: vec![
+                            AspectRatio::A4Poster,
+                            AspectRatio::Banner16_9,
+                            AspectRatio::Square1_1,
+                        ],
+                    },
+                    tags: vec![],
+                });
+                d.tags = vec![
+                    "timeline".into(),
+                    "step".into(),
+                    "roadmap".into(),
+                    "process".into(),
+                    "phase".into(),
+                    "sequence".into(),
+                ];
+                d
             });
-            d.tags = vec![
-                "timeline".into(), "step".into(), "roadmap".into(),
-                "process".into(), "phase".into(), "sequence".into(),
-            ];
-            d
-        });
 
         // Deterministic parameter extraction from the prompt (no invention).
         let title = extract_title(prompt).unwrap_or_else(|| "INFOGRAPHIC".to_string());
-        let step_count = extract_step_count(&prompt_lower).unwrap_or(layout.constraints.min_sections.max(1));
+        let step_count =
+            extract_step_count(&prompt_lower).unwrap_or(layout.constraints.min_sections.max(1));
 
         let metrics = extract_metrics(&prompt_lower);
         let sections = build_sections(step_count, &layout, prompt);
@@ -471,8 +533,14 @@ impl InfographicIntentRouter {
         if ranked[0].relevance >= RETRIEVAL_THRESHOLD {
             // In-domain: rank by relevance, aspect fit breaks ties.
             ranked.sort_by(|a, b| {
-                let fa = self.corpus[a.index].constraints.allowed_aspect_ratios.contains(&aspect) as u8;
-                let fb = self.corpus[b.index].constraints.allowed_aspect_ratios.contains(&aspect) as u8;
+                let fa = self.corpus[a.index]
+                    .constraints
+                    .allowed_aspect_ratios
+                    .contains(&aspect) as u8;
+                let fb = self.corpus[b.index]
+                    .constraints
+                    .allowed_aspect_ratios
+                    .contains(&aspect) as u8;
                 b.relevance
                     .partial_cmp(&a.relevance)
                     .unwrap_or(std::cmp::Ordering::Equal)
@@ -495,17 +563,29 @@ impl InfographicIntentRouter {
 const RETRIEVAL_THRESHOLD: f32 = 0.05;
 
 fn classify_layout_type(prompt_lower: &str) -> LayoutType {
-    if contains_any(prompt_lower, &["timeline", "step", "roadmap", "process", "phase"])
-        || contains_any(prompt_lower, &["ขั้นตอน", "ไทม์ไลน์", "ลำดับ", "กระบวนการ", "ช่วงเวลา", "เส้นเวลา"])
-    {
+    if contains_any(
+        prompt_lower,
+        &["timeline", "step", "roadmap", "process", "phase"],
+    ) || contains_any(
+        prompt_lower,
+        &["ขั้นตอน", "ไทม์ไลน์", "ลำดับ", "กระบวนการ", "ช่วงเวลา", "เส้นเวลา"],
+    ) {
         LayoutType::ProcessTimeline
-    } else if contains_any(prompt_lower, &["dashboard", "stat", "metric", "kpi", "chart"])
-        || contains_any(prompt_lower, &["แดชบอร์ด", "สถิติ", "ตัวชี้วัด", "รายงาน", "กราฟ", "ข้อมูล"])
-    {
+    } else if contains_any(
+        prompt_lower,
+        &["dashboard", "stat", "metric", "kpi", "chart"],
+    ) || contains_any(
+        prompt_lower,
+        &["แดชบอร์ด", "สถิติ", "ตัวชี้วัด", "รายงาน", "กราฟ", "ข้อมูล"],
+    ) {
         LayoutType::StatisticalDashboard
-    } else if contains_any(prompt_lower, &["compare", "vs", "feature", "matrix", "grid"])
-        || contains_any(prompt_lower, &["เปรียบเทียบ", "เทียบ", "ตาราง", "จุดเด่น", "ข้อดี"])
-    {
+    } else if contains_any(
+        prompt_lower,
+        &["compare", "vs", "feature", "matrix", "grid"],
+    ) || contains_any(
+        prompt_lower,
+        &["เปรียบเทียบ", "เทียบ", "ตาราง", "จุดเด่น", "ข้อดี"],
+    ) {
         LayoutType::ComparisonGrid
     } else {
         LayoutType::MindmapHierarchy
@@ -529,8 +609,18 @@ fn classify_theme(prompt_lower: &str) -> PaletteTheme {
         || contains_any(prompt_lower, &["ธรรมชาติ", "เขียว", "ป่า", "สิ่งแวดล้อม"])
     {
         PaletteTheme::ForestMint
-    } else if contains_any(prompt_lower, &["mono", "grayscale", "grey", "gray", "bw", "minimal", "black and white"])
-        || contains_any(prompt_lower, &["ขาวดำ", "มินิมอล", "โมโน"])
+    } else if contains_any(
+        prompt_lower,
+        &[
+            "mono",
+            "grayscale",
+            "grey",
+            "gray",
+            "bw",
+            "minimal",
+            "black and white",
+        ],
+    ) || contains_any(prompt_lower, &["ขาวดำ", "มินิมอล", "โมโน"])
     {
         PaletteTheme::Monochrome
     } else if contains_any(prompt_lower, &["warm", "coral", "creative"])
@@ -590,7 +680,12 @@ fn extract_step_count(prompt_lower: &str) -> Option<usize> {
             }
             let n: usize = prompt_lower[start..i].parse().ok()?;
             let rest: String = prompt_lower[i..].chars().take(12).collect();
-            if n >= 1 && (rest.contains("step") || rest.contains("phase") || rest.contains("ขั้น") || rest.starts_with("-step")) {
+            if n >= 1
+                && (rest.contains("step")
+                    || rest.contains("phase")
+                    || rest.contains("ขั้น")
+                    || rest.starts_with("-step"))
+            {
                 return Some(n);
             }
         }
@@ -598,8 +693,16 @@ fn extract_step_count(prompt_lower: &str) -> Option<usize> {
     }
     // Thai word numerals (zero..ten)
     const THAI_NUM: [(&str, usize); 10] = [
-        ("หนึ่ง", 1), ("สอง", 2), ("สาม", 3), ("สี่", 4), ("ห้า", 5),
-        ("หก", 6), ("เจ็ด", 7), ("แปด", 8), ("เก้า", 9), ("สิบ", 10),
+        ("หนึ่ง", 1),
+        ("สอง", 2),
+        ("สาม", 3),
+        ("สี่", 4),
+        ("ห้า", 5),
+        ("หก", 6),
+        ("เจ็ด", 7),
+        ("แปด", 8),
+        ("เก้า", 9),
+        ("สิบ", 10),
     ];
     for (word, n) in THAI_NUM {
         if prompt_lower.contains(word) && prompt_lower.contains("ขั้น") {
@@ -642,8 +745,8 @@ fn extract_metrics(prompt_lower: &str) -> Vec<MetricCardSpec> {
 }
 
 const STOP_WORDS: &[&str] = &[
-    "the", "a", "an", "in", "on", "for", "with", "of", "and", "to", "build", "create",
-    "make", "mode", "style", "theme", "color", "using", "use", "generate", "an",
+    "the", "a", "an", "in", "on", "for", "with", "of", "and", "to", "build", "create", "make",
+    "mode", "style", "theme", "color", "using", "use", "generate", "an",
 ];
 
 /// Classifies chart type from prompt hints (defaults to bar).
@@ -671,7 +774,8 @@ fn classify_chart_type(prompt_lower: &str) -> ChartType {
 /// AND supplies `label: value` pairs. Values are parsed as numbers; nothing is
 /// invented. Returns `None` when the prompt has no explicit chart intent.
 fn extract_chart(prompt_lower: &str) -> Option<ChartSpec> {
-    let wants_chart = contains_any(prompt_lower, &["chart", "graph", "plot", "viz"]) || classify_chart_type(prompt_lower) != ChartType::Bar;
+    let wants_chart = contains_any(prompt_lower, &["chart", "graph", "plot", "viz"])
+        || classify_chart_type(prompt_lower) != ChartType::Bar;
     if !wants_chart {
         return None;
     }
@@ -752,7 +856,9 @@ fn parse_number_prefix(s: &str) -> Option<f64> {
 
 /// Maps a Thai numeral character (๐..๙) to its digit value.
 fn thai_digit(c: char) -> Option<u32> {
-    ('\u{0E50}'..='\u{0E59}').contains(&c).then(|| c as u32 - '\u{0E50}' as u32)
+    ('\u{0E50}'..='\u{0E59}')
+        .contains(&c)
+        .then(|| c as u32 - '\u{0E50}' as u32)
 }
 
 /// Converts Thai numeral characters in a string to ASCII digits.
@@ -793,10 +899,10 @@ fn build_sections(count: usize, layout: &LayoutDef, prompt: &str) -> Vec<Section
             .map(|w| w.to_uppercase())
             .unwrap_or_else(|| format!("PHASE {}", i + 1));
         let description = format!(
-            "Step {} of {} — {} layout",
+            "Step {} of {} — {:?} layout",
             i + 1,
             layout.id.replace('_', " "),
-            format!("{:?}", layout.layout_type)
+            layout.layout_type
         );
         out.push(SectionSpec {
             step_number: i + 1,
@@ -815,10 +921,10 @@ impl SVGVectorRenderer {
     /// Uses the region compositor when the spec's layout id resolves in the
     /// corpus; otherwise falls back to the legacy fixed compositor (F1).
     pub fn render(spec: &InfographicLayoutSpec) -> String {
-        if let Some(layout) = layout_by_id(&spec.layout_id) {
-            if let Some(svg) = crate::compositor::render_svg_regions(&layout, spec) {
-                return svg;
-            }
+        if let Some(layout) = layout_by_id(&spec.layout_id)
+            && let Some(svg) = crate::compositor::render_svg_regions(&layout, spec)
+        {
+            return svg;
         }
         Self::render_legacy(spec)
     }
@@ -838,18 +944,41 @@ impl SVGVectorRenderer {
         ));
         svg.push_str("<defs>\n  <style>\n");
         let has_thai = crate::font::has_non_ascii(&spec.title)
-            || spec.subtitle.as_deref().is_some_and(crate::font::has_non_ascii)
-            || spec.metrics.iter().any(|m| crate::font::has_non_ascii(&m.label) || crate::font::has_non_ascii(&m.value))
-            || spec.sections.iter().any(|s| crate::font::has_non_ascii(&s.title));
+            || spec
+                .subtitle
+                .as_deref()
+                .is_some_and(crate::font::has_non_ascii)
+            || spec.metrics.iter().any(|m| {
+                crate::font::has_non_ascii(&m.label) || crate::font::has_non_ascii(&m.value)
+            })
+            || spec
+                .sections
+                .iter()
+                .any(|s| crate::font::has_non_ascii(&s.title));
         svg.push_str(&crate::font::font_style_block(has_thai));
-        svg.push_str(&format!("    text {{ font-family: {}; }}\n", crate::font::font_stack(has_thai)));
-        svg.push_str(&format!("    .title {{ font-size: 28px; font-weight: 800; fill: {}; }}\n", text_color));
+        svg.push_str(&format!(
+            "    text {{ font-family: {}; }}\n",
+            crate::font::font_stack(has_thai)
+        ));
+        svg.push_str(&format!(
+            "    .title {{ font-size: 28px; font-weight: 800; fill: {}; }}\n",
+            text_color
+        ));
         svg.push_str("    .subtitle { font-size: 14px; font-weight: 400; fill: #9CA3AF; }\n");
-        svg.push_str(&format!("    .card-title {{ font-size: 16px; font-weight: 600; fill: {}; }}\n", text_color));
+        svg.push_str(&format!(
+            "    .card-title {{ font-size: 16px; font-weight: 600; fill: {}; }}\n",
+            text_color
+        ));
         svg.push_str("    .card-desc { font-size: 12px; font-weight: 400; fill: #9CA3AF; }\n");
-        svg.push_str(&format!("    .metric-val {{ font-size: 24px; font-weight: 800; fill: {}; }}\n", accent1));
+        svg.push_str(&format!(
+            "    .metric-val {{ font-size: 24px; font-weight: 800; fill: {}; }}\n",
+            accent1
+        ));
         svg.push_str("    .metric-lbl { font-size: 11px; font-weight: 600; fill: #9CA3AF; letter-spacing: 0.5px; }\n");
-        svg.push_str(&format!("    .badge {{ font-size: 12px; font-weight: 800; fill: {}; }}\n", bg));
+        svg.push_str(&format!(
+            "    .badge {{ font-size: 12px; font-weight: 800; fill: {}; }}\n",
+            bg
+        ));
         svg.push_str("  </style>\n");
         svg.push_str(&format!(
             "  <linearGradient id=\"bg-grad\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\">\n    <stop offset=\"0%\" stop-color=\"{}\" />\n    <stop offset=\"100%\" stop-color=\"{}\" />\n  </linearGradient>\n</defs>\n",
@@ -865,7 +994,8 @@ impl SVGVectorRenderer {
 
         // Metric band (y=130..210)
         if !spec.metrics.is_empty() {
-            let card_w = (width - 80 - (spec.metrics.len() as u32 - 1) * 16) / spec.metrics.len() as u32;
+            let card_w =
+                (width - 80 - (spec.metrics.len() as u32 - 1) * 16) / spec.metrics.len() as u32;
             for (i, m) in spec.metrics.iter().enumerate() {
                 let x = 40 + i as u32 * (card_w + 16);
                 let lbl_upper = m.label.to_uppercase();
@@ -880,10 +1010,18 @@ impl SVGVectorRenderer {
 
         // Chart region (y=240..500) when a chart is bound
         if let Some(chart) = &spec.chart {
-            let colors = ChartColors { bg, card_bg, accent1, accent2, text: text_color };
+            let colors = ChartColors {
+                bg,
+                card_bg,
+                accent1,
+                accent2,
+                text: text_color,
+            };
             let chart_w = width - 80;
             let chart_h = 260;
-            svg.push_str(&ChartGlyphRenderer::render(chart, &colors, 40, 240, chart_w, chart_h));
+            svg.push_str(&ChartGlyphRenderer::render(
+                chart, &colors, 40, 240, chart_w, chart_h,
+            ));
         }
 
         // Section cards (start after chart/metrics block)

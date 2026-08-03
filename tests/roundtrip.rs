@@ -8,7 +8,10 @@ fn spec_serializes_and_reloads() {
     let spec = r.parse_and_route("Q3 KPI dashboard: revenue: 124M, users: 12M in navy");
     let json = serde_json::to_string_pretty(&spec).unwrap();
     let reloaded: katsvg_engine::InfographicLayoutSpec = serde_json::from_str(&json).unwrap();
-    assert_eq!(serde_json::to_string(&reloaded).unwrap(), serde_json::to_string(&spec).unwrap());
+    assert_eq!(
+        serde_json::to_string(&reloaded).unwrap(),
+        serde_json::to_string(&spec).unwrap()
+    );
 }
 
 #[test]
@@ -34,5 +37,8 @@ fn spec_carries_layout_id() {
     assert_eq!(hero.layout_id, "hero_quote");
     let json = serde_json::to_string(&hero).unwrap();
     let reloaded: katsvg_engine::InfographicLayoutSpec = serde_json::from_str(&json).unwrap();
-    assert_eq!(reloaded.layout_id, "hero_quote", "layout_id survives round-trip");
+    assert_eq!(
+        reloaded.layout_id, "hero_quote",
+        "layout_id survives round-trip"
+    );
 }

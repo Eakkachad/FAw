@@ -48,14 +48,8 @@ pub fn parse_path(d: &str) -> Vec<PathCmd> {
             if let Ok(v) = num.parse::<f32>() {
                 args.push(v);
             }
-            // If this number followed an M and we already have a pair, and the
-            // next char is a number (implicit L), keep collecting.
-            if current_cmd.is_some() && matches!(current_cmd.unwrap(), 'M' | 'm') && args.len() >= 2 {
-                // multiple coordinate pairs after M → implicit L
-            }
-        } else if c == ',' || c == ' ' || c == '\t' || c == '\n' {
-            i += 1;
         } else {
+            // commas / whitespace / any other char: skip (coords already parsed)
             i += 1;
         }
     }
@@ -69,9 +63,15 @@ pub fn parse_path(d: &str) -> Vec<PathCmd> {
 fn flush(out: &mut Vec<PathCmd>, cmd: Option<char>, args: &mut Vec<f32>) {
     if let Some(c) = cmd {
         if !args.is_empty() {
-            out.push(PathCmd { cmd: c, args: std::mem::take(args) });
+            out.push(PathCmd {
+                cmd: c,
+                args: std::mem::take(args),
+            });
         } else {
-            out.push(PathCmd { cmd: c, args: Vec::new() });
+            out.push(PathCmd {
+                cmd: c,
+                args: Vec::new(),
+            });
         }
     }
     args.clear();
@@ -93,7 +93,13 @@ fn expand_multi_pair(out: &mut Vec<PathCmd>) {
             while rest.len() >= 2 {
                 let lx = rest.remove(0);
                 let ly = rest.remove(0);
-                out.insert(j, PathCmd { cmd: 'L', args: vec![lx, ly] });
+                out.insert(
+                    j,
+                    PathCmd {
+                        cmd: 'L',
+                        args: vec![lx, ly],
+                    },
+                );
                 j += 1;
             }
             out[i].args = vec![first, second];

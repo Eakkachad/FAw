@@ -8,7 +8,10 @@ const JSON: &str = r#"{"Q1": 10, "Q2": 25, "Q3": 15, "Q4": 30}"#;
 #[test]
 fn csv_binds_chart_series() {
     let data = parse_data(CSV, "sales.csv").unwrap();
-    assert!(data.chart.is_some(), "CSV with >=2 rows should bind a chart");
+    assert!(
+        data.chart.is_some(),
+        "CSV with >=2 rows should bind a chart"
+    );
     let chart = data.chart.unwrap();
     assert_eq!(chart.labels, vec!["jan", "feb", "mar", "apr"]);
     assert_eq!(chart.values, vec![120.0, 85.0, 150.0, 95.0]);
@@ -25,9 +28,18 @@ fn json_object_binds_chart_series() {
 
 #[test]
 fn bad_data_returns_error() {
-    assert!(parse_data("a,b\n1,x\n", "bad.csv").is_err(), "non-numeric value should error");
-    assert!(parse_data("not json", "bad.json").is_err(), "invalid json should error");
-    assert!(parse_data("a,b\n1,2\n", "bad.txt").is_err(), "unsupported ext should error");
+    assert!(
+        parse_data("a,b\n1,x\n", "bad.csv").is_err(),
+        "non-numeric value should error"
+    );
+    assert!(
+        parse_data("not json", "bad.json").is_err(),
+        "invalid json should error"
+    );
+    assert!(
+        parse_data("a,b\n1,2\n", "bad.txt").is_err(),
+        "unsupported ext should error"
+    );
 }
 
 #[test]
@@ -61,8 +73,16 @@ const MULTI_CSV: &str = "month,a2023,b2024\njan,100,140\nfeb,120,150\nmar,90,135
 fn multi_column_csv_binds_series() {
     let data = parse_data(MULTI_CSV, "sales.csv").unwrap();
     let chart = data.chart.expect("3-column CSV should bind a chart");
-    assert_eq!(chart.values, vec![100.0, 120.0, 90.0], "first column is primary series");
-    assert_eq!(chart.series, vec![vec![140.0, 150.0, 135.0]], "second numeric column becomes series");
+    assert_eq!(
+        chart.values,
+        vec![100.0, 120.0, 90.0],
+        "first column is primary series"
+    );
+    assert_eq!(
+        chart.series,
+        vec![vec![140.0, 150.0, 135.0]],
+        "second numeric column becomes series"
+    );
     assert_eq!(chart.labels, vec!["jan", "feb", "mar"]);
 }
 
