@@ -8,6 +8,8 @@ pub mod compositor;
 pub mod data_binding;
 pub mod font;
 pub mod icon;
+pub mod icon_paths;
+pub mod icon_raster;
 pub mod palette;
 pub mod pdf_font;
 pub mod retrieval;

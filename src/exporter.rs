@@ -33,9 +33,10 @@ pub struct PDFVectorExporter;
 impl PDFVectorExporter {
     pub fn generate_pdf_bytes(spec: &InfographicLayoutSpec) -> Vec<u8> {
         let (width_pt, height_pt) = spec.aspect_ratio.dimensions();
-        let (bg_hex, card_hex, accent1_hex, _accent2_hex, text_hex) = spec.theme.colors();
+        let (bg_hex, card_hex, accent1_hex, accent2_hex, text_hex) = spec.theme.colors();
 
         let (bg_r, bg_g, bg_b) = hex_to_rgb(bg_hex);
+        let (a2r, a2g, a2b) = hex_to_rgb(accent2_hex);
         let (card_r, card_g, card_b) = hex_to_rgb(card_hex);
         let (acc_r, acc_g, acc_b) = hex_to_rgb(accent1_hex);
         let (text_r, text_g, text_b) = hex_to_rgb(text_hex);
@@ -90,6 +91,9 @@ impl PDFVectorExporter {
             pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 18.0, acc_r, acc_g, acc_b, x + 16.0, card_y + 44.0, &m.value);
 
             pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 9.0, 0.6, 0.6, 0.6, x + 16.0, card_y + 22.0, &m.label.to_uppercase());
+
+            // Icon glyph at top-right of the card (F3)
+            crate::icon_raster::draw_icon_pdf(&mut content_stream, x + card_w - 20.0, card_y + 62.0, 1.5, a2r, a2g, a2b, &m.icon);
         }
 
         // Chart region (SVG y 240..500 → PDF bottom-left y = height-500, h=260) — D3
@@ -232,6 +236,7 @@ impl PNGRasterExporter {
         let (bg_r, bg_g, bg_b) = hex_to_rgb_u8(bg_hex);
         let (card_r, card_g, card_b) = hex_to_rgb_u8(card_hex);
         let (acc_r, acc_g, acc_b) = hex_to_rgb_u8(accent1_hex);
+        let (acc2_r, acc2_g, acc2_b) = hex_to_rgb_u8(accent2_hex);
         let (text_r, text_g, text_b) = hex_to_rgb_u8(text_hex);
 
         let mut px = vec![bg_r, bg_g, bg_b];
@@ -263,6 +268,10 @@ impl PNGRasterExporter {
             // metric value + label (real text now, P5)
             renderer.draw_text(&mut px, w, h, (x + 16) as f32, 172.0, 24.0, (acc_r, acc_g, acc_b), &m.value);
             renderer.draw_text(&mut px, w, h, (x + 16) as f32, 194.0, 11.0, (154, 163, 175), &m.label.to_uppercase());
+            // Icon glyph at top-right of the card (F3)
+            let icon_cx = (x + card_w - 20) as usize;
+            let icon_cy = 160usize;
+            crate::icon_raster::draw_icon_raster(&mut px, w, h, icon_cx, icon_cy, 2, (acc2_r, acc2_g, acc2_b), &m.icon);
         }
 
         // Chart region (mirrors SVG chart at y=240, height 260) — D1 parity
@@ -342,7 +351,7 @@ pub struct PPTXPresentationExporter;
 impl PPTXPresentationExporter {
     /// Builds a complete, valid `.pptx` package as a ZIP byte buffer.
     pub fn generate_pptx_bytes(spec: &InfographicLayoutSpec) -> Vec<u8> {
-        let (bg_hex, card_hex, accent1_hex, _accent2_hex, text_hex) = spec.theme.colors();
+        let (bg_hex, card_hex, accent1_hex, accent2_hex, text_hex) = spec.theme.colors();
         let (w_pt, h_pt) = spec.aspect_ratio.dimensions();
 
         // Presentation slide size in EMU (1 pt = 12700 EMU)
@@ -364,6 +373,34 @@ impl PPTXPresentationExporter {
         slide_xml.push_str(&format!("          <a:r><a:rPr lang=\"en-US\" sz=\"2800\" b=\"1\"><a:solidFill><a:srgbClr val=\"{}\"/></a:solidFill></a:rPr>", text_hex.trim_start_matches('#')));
         slide_xml.push_str(&format!("<a:t>{}</a:t></a:r>\n", escape_xml(&spec.title)));
         slide_xml.push_str("        </a:p></p:txBody>\n      </p:sp>\n");
+
+        // Metric cards (F3: PPTX previously had no metric cards)
+        if !spec.metrics.is_empty() {
+            let n = spec.metrics.len() as f32;
+            let card_w_emu = 8229600u64;
+            let gap_emu = 120000u64;
+            let total_w = card_w_emu * n as u64 + gap_emu * (n as u64 - 1);
+            let start_x = (12192000u64.saturating_sub(total_w)) / 2;
+            for (i, m) in spec.metrics.iter().enumerate() {
+                let x_off = start_x + i as u64 * (card_w_emu + gap_emu);
+                let id = 30 + i as u32;
+                slide_xml.push_str("      <p:sp>\n");
+                slide_xml.push_str(&format!("        <p:nvSpPr><p:cNvPr id=\"{}\" name=\"Metric {}\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>\n", id, i + 1));
+                slide_xml.push_str(&format!("        <p:spPr><a:xfrm><a:off x=\"{}\" y=\"1371600\"/><a:ext cx=\"{}\" cy=\"914400\"/></a:xfrm>\n", x_off, card_w_emu));
+                slide_xml.push_str(&format!("          <a:prstGeom prst=\"roundRect\"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val=\"{}\"/></a:solidFill>\n", card_hex.trim_start_matches('#')));
+                slide_xml.push_str("        </p:spPr>\n");
+                slide_xml.push_str("        <p:txBody><a:bodyPr/><a:lstStyle/><a:p>\n");
+                slide_xml.push_str(&format!("          <a:r><a:rPr sz=\"2000\" b=\"1\"><a:solidFill><a:srgbClr val=\"{}\"/></a:solidFill></a:rPr><a:t>{}</a:t></a:r>\n", accent1_hex.trim_start_matches('#'), escape_xml(&m.value)));
+                slide_xml.push_str("        </a:p></p:txBody>\n      </p:sp>\n");
+                // icon mark (stroke rect approximating the glyph)
+                slide_xml.push_str("      <p:sp>\n");
+                slide_xml.push_str(&format!("        <p:nvSpPr><p:cNvPr id=\"{}\" name=\"Icon {}\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>\n", id + 100, i + 1));
+                slide_xml.push_str(&format!("        <p:spPr><a:xfrm><a:off x=\"{}\" y=\"1676400\"/><a:ext cx=\"274320\" cy=\"274320\"/></a:xfrm>\n", x_off + card_w_emu - 400000));
+                slide_xml.push_str("          <a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:ln w=\"38100\"><a:solidFill><a:srgbClr val=\"");
+                slide_xml.push_str(accent2_hex.trim_start_matches('#'));
+                slide_xml.push_str("\"/></a:solidFill></a:ln><a:noFill/></p:spPr>\n        <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang=\"en-US\"/></a:p></p:txBody>\n      </p:sp>\n");
+            }
+        }
 
         // Chart shapes (native PPTX vectors, D2 parity)
         if let Some(chart) = &spec.chart {

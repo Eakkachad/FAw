@@ -70,3 +70,32 @@ fn pdf_latin_text_stays_literal() {
     assert!(!pdf.windows(b"/Subtype /Type0".len()).any(|w| w == b"/Subtype /Type0"), "ascii-only PDF has no Type0 font");
     assert!(pdf.windows(b") Tj".len()).any(|w| w == b") Tj"), "latin text stays literal string");
 }
+
+#[test]
+fn pdf_metric_cards_carry_icon_strokes() {
+    let r = InfographicIntentRouter::new();
+    let spec = r.parse_and_route("Q3 KPI dashboard: revenue: 124M, users: 12M in navy");
+    assert_eq!(spec.metrics.len(), 2, "both metric pairs bind");
+    let pdf = katsvg_engine::PDFVectorExporter::generate_pdf_bytes(&spec);
+    // icon strokes emitted with a stroke-op RG + linewidth
+    assert!(pdf.windows(b" RG 1.5 w".len()).any(|w| w == b" RG 1.5 w"), "PDF icon stroke op present");
+}
+
+#[test]
+fn pptx_metric_cards_have_icons() {
+    let r = InfographicIntentRouter::new();
+    let spec = r.parse_and_route("Q3 KPI dashboard: revenue: 124M, users: 12M in navy");
+    let pptx = katsvg_engine::PPTXPresentationExporter::generate_pptx_bytes(&spec);
+    let txt = String::from_utf8_lossy(&pptx);
+    assert!(txt.contains("name=\"Metric 1\""), "PPTX metric card 1 present");
+    assert!(txt.contains("name=\"Icon 1\""), "PPTX icon mark 1 present");
+}
+
+#[test]
+fn nested_colon_metric_extraction() {
+    let r = InfographicIntentRouter::new();
+    let spec = r.parse_and_route("Q3 KPI dashboard: revenue: 124M, users: 12M in navy");
+    let values: Vec<&str> = spec.metrics.iter().map(|m| m.value.as_str()).collect();
+    assert!(values.iter().any(|v| v.contains("124")), "nested colon must bind revenue, got {values:?}");
+    assert!(values.iter().any(|v| v.contains("12")), "users bound, got {values:?}");
+}

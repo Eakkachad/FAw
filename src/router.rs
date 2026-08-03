@@ -600,13 +600,21 @@ fn extract_metrics(prompt_lower: &str) -> Vec<MetricCardSpec> {
     let mut out = Vec::new();
     for part in prompt_lower.split([',', ';', '|']) {
         let part = part.trim();
-        if let Some((k, v)) = part.split_once(':') {
-            let key = k.trim().to_string();
-            let value = normalize_thai_digits(v.trim());
-            let starts_numeric = value.chars().next().is_some_and(|c| {
+        // Find the LAST colon whose tail is numeric, so leading phrases
+        // ("Q3 KPI dashboard: revenue: 124M") bind the last pair correctly.
+        let mut best: Option<(usize, String)> = None;
+        for (idx, _) in part.match_indices(':') {
+            let v = normalize_thai_digits(part[idx + 1..].trim());
+            let starts_numeric = v.chars().next().is_some_and(|c| {
                 c.is_ascii_digit() || c == '<' || c == '>' || thai_digit(c).is_some()
             });
-            if key.len() > 0 && value.len() > 0 && starts_numeric {
+            if starts_numeric && !v.is_empty() {
+                best = Some((idx, v));
+            }
+        }
+        if let Some((idx, value)) = best {
+            let key = part[..idx].trim().to_string();
+            if !key.is_empty() {
                 out.push(MetricCardSpec {
                     label: key.to_uppercase(),
                     value,
