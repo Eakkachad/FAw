@@ -125,9 +125,13 @@ fn main() {
     // F10: optional LLM comparison probe. Key read from env, never logged.
     if std::env::args().any(|a| a == "--llm") {
         if std::env::var_os("OPENAI_API_KEY").is_none() {
-            println!("\n[llm] skip — set OPENAI_API_KEY to run the LLM comparison probe (F10). No key present; no claim of measured LLM results.");
+            println!(
+                "\n[llm] skip — set OPENAI_API_KEY to run the LLM comparison probe (F10). No key present; no claim of measured LLM results."
+            );
         } else {
-            println!("\n[llm] OPENAI_API_KEY detected. Run with the probe enabled in a separate tool to compare latency/cost; katSVG's own numbers are above.");
+            println!(
+                "\n[llm] OPENAI_API_KEY detected. Run with the probe enabled in a separate tool to compare latency/cost; katSVG's own numbers are above."
+            );
         }
     }
 

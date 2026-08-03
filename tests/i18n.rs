@@ -1,7 +1,7 @@
 //! F10 gate tests: i18n chrome text (subtitle/footer follow prompt language).
 
-use katsvg_engine::strs::{Lang, Strs, detect_lang};
 use katsvg_engine::InfographicIntentRouter;
+use katsvg_engine::strs::{Lang, Strs, detect_lang};
 
 #[test]
 fn detect_lang_routes_thai_and_english() {
@@ -15,8 +15,14 @@ fn thai_prompt_gets_thai_subtitle_and_footer() {
     let r = InfographicIntentRouter::new();
     let spec = r.parse_and_route("สร้างไทม์ไลน์การพัฒนาระบบ");
     assert_eq!(spec.lang, Lang::Th);
-    assert!(spec.subtitle.as_deref().unwrap().contains("สร้างโดย"), "Thai subtitle");
-    assert!(spec.footer_note.as_deref().unwrap().contains("สัญญาอนุญาต"), "Thai footer");
+    assert!(
+        spec.subtitle.as_deref().unwrap().contains("สร้างโดย"),
+        "Thai subtitle"
+    );
+    assert!(
+        spec.footer_note.as_deref().unwrap().contains("สัญญาอนุญาต"),
+        "Thai footer"
+    );
 }
 
 #[test]
@@ -24,7 +30,10 @@ fn english_prompt_gets_english_chrome() {
     let r = InfographicIntentRouter::new();
     let spec = r.parse_and_route("Build a timeline");
     assert_eq!(spec.lang, Lang::En);
-    assert!(spec.subtitle.as_deref().unwrap().contains("Generated via"), "English subtitle");
+    assert!(
+        spec.subtitle.as_deref().unwrap().contains("Generated via"),
+        "English subtitle"
+    );
 }
 
 #[test]

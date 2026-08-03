@@ -33,7 +33,9 @@ fn scratch() -> &'static mut Vec<u8> {
 pub extern "C" fn alloc_buf() -> *mut c_char {
     unsafe {
         scratch().resize(SCRATCH_CAP, 0);
-        unsafe { *RESULT_LEN.0.get() = 0; }
+        unsafe {
+            *RESULT_LEN.0.get() = 0;
+        }
         scratch().as_mut_ptr() as *mut c_char
     }
 }
@@ -58,7 +60,9 @@ pub extern "C" fn render_svg(ptr: *mut c_char, len: usize) -> i32 {
             return -2;
         }
         s[..bytes.len()].copy_from_slice(bytes);
-        unsafe { *RESULT_LEN.0.get() = bytes.len(); }
+        unsafe {
+            *RESULT_LEN.0.get() = bytes.len();
+        }
         0
     }
 }
