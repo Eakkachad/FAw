@@ -74,15 +74,13 @@ fn escape_svg(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
-/// Truncate a string to a pixel budget using a rough 0.6×px per-char estimate
-/// (SVG uses viewBox pixels; deterministic approximation).
+/// Truncate a string to a pixel budget using the real font rasterizer width
+/// measurement (F6) so text never spills past its region. Deterministic.
 fn fit_text(text: &str, px: f32, budget_px: u32) -> String {
-    let cap = (budget_px as f32 / (px * 0.6)).floor() as usize;
-    if text.chars().count() <= cap {
-        return text.to_string();
-    }
-    let cut: String = text.chars().take(cap.saturating_sub(1)).collect();
-    format!("{cut}…")
+    static RENDERER: std::sync::OnceLock<crate::text::TextRenderer> = std::sync::OnceLock::new();
+    RENDERER
+        .get_or_init(crate::text::TextRenderer::new)
+        .truncate_to_fit(px, budget_px as f32, text)
 }
 
 /// Render an SVG from the region layout. Returns the SVG string.

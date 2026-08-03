@@ -107,6 +107,28 @@ impl TextRenderer {
             })
             .sum()
     }
+
+    /// Truncate `text` with an ellipsis so it fits within `budget_px` at `px`
+    /// height (F6). Binary search on the longest fitting prefix.
+    pub fn truncate_to_fit(&self, px: f32, budget_px: f32, text: &str) -> String {
+        if self.text_width(px, text) <= budget_px {
+            return text.to_string();
+        }
+        let mut lo = 0usize;
+        let mut hi = text.chars().count();
+        let ell = self.text_width(px, "…");
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2;
+            let prefix: String = text.chars().take(mid).collect();
+            if self.text_width(px, &prefix) + ell <= budget_px {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        let cut: String = text.chars().take(lo).collect();
+        format!("{cut}…")
+    }
 }
 
 fn blend(bg: u8, fg: u8, a: f32) -> u8 {

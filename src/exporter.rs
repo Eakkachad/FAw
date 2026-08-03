@@ -60,7 +60,8 @@ impl PDFVectorExporter {
             acc_r, acc_g, acc_b, y_top
         ));
 
-        pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 22.0, text_r, text_g, text_b, 68.0, y_top + 26.0, &spec.title);
+        let title_fit = pdf_fit(&spec.title, 22.0, width_pt as f32 - 120.0);
+        pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 22.0, text_r, text_g, text_b, 68.0, y_top + 26.0, &title_fit);
 
         if let Some(sub) = &spec.subtitle {
             pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 11.0, 0.6, 0.6, 0.6, 68.0, y_top + 8.0, sub);
@@ -142,10 +143,11 @@ impl PDFVectorExporter {
                 y, sec_w, sec_h
             ));
 
-            let step_label = format!("{}. {}", s.step_number, s.title);
+            let step_label = format!("{}. {}", s.step_number, pdf_fit(&s.title, 13.0, sec_w - 130.0));
             pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 13.0, text_r, text_g, text_b, 104.0, y + 54.0, &step_label);
 
-            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 10.0, 0.6, 0.6, 0.6, 104.0, y + 32.0, &s.description);
+            let desc = pdf_fit(&s.description, 10.0, sec_w - 130.0);
+            pdf_emit_text(&mut content_stream, spec, needs_thai, "F1", 10.0, 0.6, 0.6, 0.6, 104.0, y + 32.0, &desc);
         }
 
         let stream_bytes = content_stream.as_bytes();
@@ -248,7 +250,8 @@ impl PNGRasterExporter {
         fill_rect(&mut px, w, 40, 50, 48, 98, (acc_r, acc_g, acc_b));
 
         // Title + subtitle text
-        renderer.draw_text(&mut px, w, h, 60.0, 78.0, 28.0, (text_r, text_g, text_b), &spec.title);
+        let title_fit = renderer.truncate_to_fit(28.0, (w - 80) as f32, &spec.title);
+        renderer.draw_text(&mut px, w, h, 60.0, 78.0, 28.0, (text_r, text_g, text_b), &title_fit);
         if let Some(sub) = &spec.subtitle {
             renderer.draw_text(&mut px, w, h, 60.0, 100.0, 14.0, (154, 163, 175), sub);
         }
@@ -310,8 +313,10 @@ impl PNGRasterExporter {
             fill_rect(&mut px, w, 16, y + 26, 46, y + 46, (acc_r, acc_g, acc_b));
             renderer.draw_text(&mut px, w, h, (24.5) as f32, y as f32 + 44.0, 13.0, (bg_r, bg_g, bg_b), &s.step_number.to_string());
             // title + description
-            renderer.draw_text(&mut px, w, h, 60.0, y as f32 + 38.0, 16.0, (text_r, text_g, text_b), &s.title);
-            renderer.draw_text(&mut px, w, h, 60.0, y as f32 + 60.0, 12.0, (154, 163, 175), &s.description);
+            let sec_title = renderer.truncate_to_fit(16.0, (w - 110) as f32, &s.title);
+            renderer.draw_text(&mut px, w, h, 60.0, y as f32 + 38.0, 16.0, (text_r, text_g, text_b), &sec_title);
+            let sec_desc = renderer.truncate_to_fit(12.0, (w - 110) as f32, &s.description);
+            renderer.draw_text(&mut px, w, h, 60.0, y as f32 + 60.0, 12.0, (154, 163, 175), &sec_desc);
         }
 
         let mut out = Vec::with_capacity(px.len() / 3 + 1024);
@@ -729,6 +734,16 @@ fn hex_to_rgb_u8(hex: &str) -> (u8, u8, u8) {
 
 fn sanitize_pdf_str(input: &str) -> String {
     input.replace('\\', "\\\\").replace('(', "\\(").replace(')', "\\)")
+}
+
+/// Truncate text to a pixel budget using the embedded font width measurement
+/// (F6). PDF uses pt units; the rasterizer's px width approximates pt width 1:1
+/// at the same size, which is close enough for a guard.
+fn pdf_fit(text: &str, px: f32, budget: f32) -> String {
+    static RENDERER: std::sync::OnceLock<crate::text::TextRenderer> = std::sync::OnceLock::new();
+    RENDERER
+        .get_or_init(crate::text::TextRenderer::new)
+        .truncate_to_fit(px, budget, text)
 }
 
 /// Emit a PDF text-show operator for `text` at `(x, y)` with font `font_ref`,

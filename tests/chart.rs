@@ -49,6 +49,8 @@ fn all_six_glyphs_render_svg() {
         labels: vec!["a".into(), "b".into(), "c".into()],
         values: vec![10.0, 25.0, 15.0],
         unit: None,
+        series: Vec::new(),
+        series_names: Vec::new(),
     };
     for ct in [
         ChartType::Bar,
@@ -76,6 +78,8 @@ fn glyph_output_is_deterministic() {
         labels: vec!["a".into(), "b".into(), "c".into()],
         values: vec![10.0, 25.0, 15.0],
         unit: None,
+        series: Vec::new(),
+        series_names: Vec::new(),
     };
     let a = ChartGlyphRenderer::render(&spec, &COLORS, 40, 240, 720, 260);
     let b = ChartGlyphRenderer::render(&spec, &COLORS, 40, 240, 720, 260);

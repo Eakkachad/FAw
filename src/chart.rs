@@ -74,7 +74,7 @@ fn render_bar(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: 
             gx + group_w / 2,
             plot_h + 16,
             c.text,
-            label
+            fit_chart_label(label, group_w)
         ));
     }
     svg.push_str("</g>\n");
@@ -348,4 +348,16 @@ fn render_area(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h:
     }
     svg.push_str("</g>\n");
     svg
+}
+
+/// Truncate a chart tick label to fit within `budget_px` (F6). Uses a
+/// deterministic 0.6×px per-char estimate (labels are small; the rasterizer
+/// measure is overkill here and would add per-label font load).
+fn fit_chart_label(text: &str, budget_px: u32) -> String {
+    let cap = (budget_px as f32 / 6.0).floor() as usize; // ~10px font ≈ 6px/char
+    if text.chars().count() <= cap {
+        return text.to_string();
+    }
+    let cut: String = text.chars().take(cap.saturating_sub(1)).collect();
+    format!("{cut}…")
 }
