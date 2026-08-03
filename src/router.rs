@@ -112,6 +112,21 @@ pub struct ChartSpec {
     pub labels: Vec<String>,
     pub values: Vec<f64>,
     pub unit: Option<String>,
+    /// Additional series (multi-column data) — each aligned to `labels`.
+    /// Empty = single-series (use `values`).
+    #[serde(default)]
+    pub series: Vec<Vec<f64>>,
+    #[serde(default)]
+    pub series_names: Vec<String>,
+}
+
+impl ChartSpec {
+    /// All series incl. the primary `values` as the first entry.
+    pub fn all_series(&self) -> Vec<Vec<f64>> {
+        let mut out = vec![self.values.clone()];
+        out.extend(self.series.iter().cloned());
+        out
+    }
 }
 
 /// Master Strongly-Typed Infographic Layout Specification (Latent MCP Target)
@@ -703,6 +718,8 @@ fn extract_chart(prompt_lower: &str) -> Option<ChartSpec> {
         labels,
         values,
         unit: None,
+        series: Vec::new(),
+        series_names: Vec::new(),
     })
 }
 

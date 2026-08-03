@@ -39,9 +39,7 @@ fn parse_csv(content: &str) -> Result<BoundData, String> {
     }
 
     let mut labels = Vec::new();
-    let mut values = Vec::new();
-    let mut metrics = Vec::new();
-    let mut rows = Vec::new();
+    let mut rows: Vec<Vec<f64>> = Vec::new();
 
     for line in lines {
         let cells: Vec<&str> = line.split(',').map(str::trim).collect();
@@ -49,46 +47,40 @@ fn parse_csv(content: &str) -> Result<BoundData, String> {
             continue;
         }
         let label = cells[0].to_string();
-        let val = cells[1].parse::<f64>().map_err(|_| format!("non-numeric value in row: {line}"))?;
-        rows.push((label, val));
+        let mut vals = Vec::with_capacity(cells.len() - 1);
+        for c in &cells[1..] {
+            let v = c.parse::<f64>().map_err(|_| format!("non-numeric value in row: {line}"))?;
+            vals.push(v);
+        }
+        labels.push(label);
+        rows.push(vals);
     }
 
-    // Heuristic: if headers look like metric key names and values are small set → metrics;
-    // otherwise → chart series.
-    let chartish = rows.len() >= 2;
-    if chartish {
-        for (label, val) in &rows {
-            labels.push(label.clone());
-            values.push(*val);
+    // Build series: one per numeric column beyond the label column.
+    let n_cols = cols.len() - 1;
+    let mut series: Vec<Vec<f64>> = (0..n_cols).map(|_| Vec::new()).collect();
+    for row in &rows {
+        for (s, v) in series.iter_mut().zip(row.iter()) {
+            s.push(*v);
         }
     }
-
-    // If a third column provides a label for metrics (key,label,value) or if the
-    // first column is "metric", bind as metrics. Keep simple: metrics = first 2
-    // rows as KPI cards when chart not clearly intended.
-    if !chartish {
-        for (label, val) in &rows {
-            metrics.push(MetricCardSpec {
-                label: label.to_uppercase(),
-                value: format!("{val}"),
-                icon: "chart".to_string(),
-            });
-        }
-    }
+    // Primary `values` = first series; extras go into `series`.
+    let primary = series.first().cloned().unwrap_or_default();
+    let extras: Vec<Vec<f64>> = series.into_iter().skip(1).collect();
+    let series_names: Vec<String> = cols[1..].iter().map(|c| c.to_string()).collect();
 
     let mut out = BoundData::default();
-    if !metrics.is_empty() {
-        out.metrics = metrics;
-    }
     if labels.len() >= 2 {
         out.chart = Some(ChartSpec {
             chart_type: ChartType::Bar,
             labels,
-            values,
+            values: primary,
             unit: None,
+            series: extras,
+            series_names: if series_names.len() > 1 { series_names[1..].to_vec() } else { Vec::new() },
         });
     }
-    let _ = (cols.len(), header);
+    let _ = cols.len();
     Ok(out)
 }
 
@@ -130,7 +122,7 @@ fn parse_json(content: &str) -> Result<BoundData, String> {
                 }
             }
             if labels.len() >= 2 {
-                out.chart = Some(ChartSpec { chart_type: ChartType::Bar, labels, values, unit: None });
+                out.chart = Some(ChartSpec { chart_type: ChartType::Bar, labels, values, unit: None, series: Vec::new(), series_names: Vec::new() });
             }
             if !metrics.is_empty() {
                 out.metrics = metrics;
@@ -151,7 +143,7 @@ fn parse_json(content: &str) -> Result<BoundData, String> {
                 let _ = &entry.extra;
             }
             if labels.len() >= 2 {
-                out.chart = Some(ChartSpec { chart_type: ChartType::Bar, labels, values, unit: None });
+                out.chart = Some(ChartSpec { chart_type: ChartType::Bar, labels, values, unit: None, series: Vec::new(), series_names: Vec::new() });
             } else if !labels.is_empty() {
                 metrics.push(MetricCardSpec { label: labels[0].to_uppercase(), value: format!("{}", values[0]), icon: "chart".to_string() });
             }

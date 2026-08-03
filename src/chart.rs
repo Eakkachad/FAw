@@ -42,32 +42,39 @@ fn max_value(values: &[f64]) -> f64 {
 }
 
 fn render_bar(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: u32) -> String {
-    let n = spec.values.len() as u32;
-    let max = max_value(&spec.values);
+    let series = spec.all_series();
+    let n = spec.labels.len().max(1) as u32;
+    let s_count = series.len() as u32;
+    let max = series.iter().flatten().copied().fold(0.0, f64::max).max(1.0);
     let plot_w = w - 16;
     let plot_h = h - 32;
-    let bar_w = (plot_w / n).min(48);
-    let gap = ((plot_w - bar_w * n) / (n + 1)).max(2);
+    let group_w = (plot_w / n).min(48);
+    let bar_w = (group_w / s_count).max(3);
+    let gap = ((plot_w - group_w * n) / (n + 1)).max(2);
 
     let mut svg = format!(
         "<g transform=\"translate({}, {})\">\n  <line x1=\"8\" y1=\"{}\" x2=\"{}\" y2=\"{}\" stroke=\"#374151\" stroke-width=\"1\" />\n",
         x, y, plot_h, plot_w, plot_h
     );
-    for (i, v) in spec.values.iter().enumerate() {
-        let bh = ((v / max) * plot_h as f64).max(2.0) as u32;
-        let bx = 8 + i as u32 * (bar_w + gap) + gap;
-        let by = plot_h - bh;
-        let color = if i % 2 == 0 { c.accent1 } else { c.accent2 };
-        svg.push_str(&format!(
-            "  <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" rx=\"3\" fill=\"{}\" />\n",
-            bx, by, bar_w, bh, color
-        ));
+    for (i, label) in spec.labels.iter().enumerate() {
+        let gx = 8 + i as u32 * (group_w + gap) + gap;
+        for (s, vals) in series.iter().enumerate() {
+            let v = vals.get(i).copied().unwrap_or(0.0);
+            let bh = ((v / max) * plot_h as f64).max(2.0) as u32;
+            let bx = gx + s as u32 * bar_w;
+            let by = plot_h - bh;
+            let color = if s % 2 == 0 { c.accent1 } else { c.accent2 };
+            svg.push_str(&format!(
+                "  <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" rx=\"3\" fill=\"{}\" />\n",
+                bx, by, bar_w, bh, color
+            ));
+        }
         svg.push_str(&format!(
             "  <text x=\"{}\" y=\"{}\" font-size=\"10\" fill=\"{}\" text-anchor=\"middle\">{}</text>\n",
-            bx + bar_w / 2,
+            gx + group_w / 2,
             plot_h + 16,
             c.text,
-            spec.labels.get(i).map(|s| s.as_str()).unwrap_or("")
+            label
         ));
     }
     svg.push_str("</g>\n");
@@ -75,36 +82,44 @@ fn render_bar(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: 
 }
 
 fn render_line(spec: &ChartSpec, c: &ChartColors<'_>, x: u32, y: u32, w: u32, h: u32) -> String {
-    let n = spec.values.len() as u32;
-    let max = max_value(&spec.values);
+    let series = spec.all_series();
+    let n = spec.labels.len().max(2) as u32;
+    let max = series.iter().flatten().copied().fold(0.0, f64::max).max(1.0);
     let plot_w = w - 16;
     let plot_h = h - 32;
 
-    let mut points = String::new();
-    for (i, v) in spec.values.iter().enumerate() {
-        let px = 8 + if n == 1 { 0 } else { i as u32 * (plot_w - 16) / (n - 1) };
-        let py = plot_h - ((v / max) * plot_h as f64) as u32;
-        points.push_str(&format!("{},{} ", px, py));
-    }
-
     let mut svg = format!(
-        "<g transform=\"translate({}, {})\">\n  <polyline points=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"2\" />\n",
-        x, y, points.trim(), c.accent1
+        "<g transform=\"translate({}, {})\">\n",
+        x, y
     );
-    for (i, v) in spec.values.iter().enumerate() {
-        let px = 8 + if n == 1 { 0 } else { i as u32 * (plot_w - 16) / (n - 1) };
-        let py = plot_h - ((v / max) * plot_h as f64) as u32;
+    for (s, vals) in series.iter().enumerate() {
+        let color = if s % 2 == 0 { c.accent1 } else { c.accent2 };
+        let mut points = String::new();
+        for (i, v) in vals.iter().enumerate() {
+            let px = 8 + i as u32 * (plot_w - 16) / (n - 1);
+            let py = plot_h - ((v / max) * plot_h as f64) as u32;
+            points.push_str(&format!("{},{} ", px, py));
+        }
         svg.push_str(&format!(
-            "  <circle cx=\"{}\" cy=\"{}\" r=\"4\" fill=\"{}\" />\n",
-            px, py, c.accent2
+            "  <polyline points=\"{}\" fill=\"none\" stroke=\"{}\" stroke-width=\"2\" />\n",
+            points.trim(), color
         ));
+        for (i, v) in vals.iter().enumerate() {
+            let px = 8 + i as u32 * (plot_w - 16) / (n - 1);
+            let py = plot_h - ((v / max) * plot_h as f64) as u32;
+            svg.push_str(&format!(
+                "  <circle cx=\"{}\" cy=\"{}\" r=\"4\" fill=\"{}\" />\n",
+                px, py, color
+            ));
+            let _ = v;
+        }
+    }
+    for (i, label) in spec.labels.iter().enumerate() {
+        let px = 8 + i as u32 * (plot_w - 16) / (n - 1);
         svg.push_str(&format!(
             "  <text x=\"{}\" y=\"{}\" font-size=\"10\" fill=\"#9CA3AF\" text-anchor=\"middle\">{}</text>\n",
-            px,
-            plot_h + 16,
-            spec.labels.get(i).map(|s| s.as_str()).unwrap_or("")
+            px, plot_h + 16, label
         ));
-        let _ = v;
     }
     svg.push_str("</g>\n");
     svg

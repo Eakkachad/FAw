@@ -52,3 +52,38 @@ fn parse_and_bind_is_deterministic() {
         serde_json::to_string(&b).unwrap()
     );
 }
+
+// ── F5: deep data binding ────────────────────────────────────────────────────
+
+const MULTI_CSV: &str = "month,a2023,b2024\njan,100,140\nfeb,120,150\nmar,90,135\n";
+
+#[test]
+fn multi_column_csv_binds_series() {
+    let data = parse_data(MULTI_CSV, "sales.csv").unwrap();
+    let chart = data.chart.expect("3-column CSV should bind a chart");
+    assert_eq!(chart.values, vec![100.0, 120.0, 90.0], "first column is primary series");
+    assert_eq!(chart.series, vec![vec![140.0, 150.0, 135.0]], "second numeric column becomes series");
+    assert_eq!(chart.labels, vec!["jan", "feb", "mar"]);
+}
+
+#[test]
+fn multi_series_renders_grouped_bars() {
+    let r = InfographicIntentRouter::new();
+    let data = parse_data(MULTI_CSV, "sales.csv").unwrap();
+    let spec = r.parse_and_bind("Show a bar chart in navy banner", &data);
+    let svg = katsvg_engine::SVGVectorRenderer::render(&spec);
+    // 3 labels × 2 series = 6 chart bars
+    let bars = svg.matches("rx=\"3\"").count();
+    assert_eq!(bars, 6, "grouped bars for 2 series × 3 labels, got {bars}");
+}
+
+#[test]
+fn row_values_bind_as_sections() {
+    // A row-oriented file binds sections when the prompt targets a section layout.
+    let r = InfographicIntentRouter::new();
+    let data = parse_data(MULTI_CSV, "sales.csv").unwrap();
+    let spec = r.parse_and_bind("Show a deployment timeline", &data);
+    // multi-series still bound; sections fall back to prompt-derived count
+    assert!(spec.chart.is_some());
+    assert!(!spec.sections.is_empty(), "timeline keeps sections");
+}
