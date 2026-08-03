@@ -31,3 +31,7 @@ pub use router::{
     InfographicLayoutSpec, LayoutConstraints, LayoutDef, RegionDef, SVGVectorRenderer, load_corpus,
 };
 pub use text::TextRenderer;
+
+/// WASM C-ABI entry points (compiled only for the wasm32 target).
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;

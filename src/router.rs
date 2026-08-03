@@ -8,7 +8,29 @@
 //! - `InfographicConstraintPruner` enforces structural bounds; violations are clamped,
 //!   never patched with fabricated data (0.0% hallucination).
 
+#[cfg(not(target_arch = "wasm32"))]
 use katgpt_core::traits::ConstraintPruner;
+
+/// Local stub of `katgpt_core::traits::ConstraintPruner` for the wasm32 target
+/// (katgpt-core pulls getrandom, which is unsupported on wasm32-unknown-unknown).
+/// Signature is identical so native code paths compile unchanged.
+#[cfg(target_arch = "wasm32")]
+pub trait ConstraintPruner: Send + Sync {
+    fn is_valid(&self, depth: usize, token_idx: usize, parent_tokens: &[usize]) -> bool;
+
+    fn batch_is_valid(
+        &self,
+        depth: usize,
+        candidates: &[usize],
+        parent_tokens: &[usize],
+        results: &mut [bool],
+    ) {
+        let len = candidates.len().min(results.len());
+        for i in 0..len {
+            results[i] = self.is_valid(depth, candidates[i], parent_tokens);
+        }
+    }
+}
 use serde::{Deserialize, Serialize};
 
 /// Supported Infographic Layout Types
