@@ -138,3 +138,24 @@ fn nested_colon_metric_extraction() {
         "users bound, got {values:?}"
     );
 }
+
+#[test]
+fn metric_value_does_not_absorb_trailing_words() {
+    let r = InfographicIntentRouter::new();
+    let spec = r.parse_and_route("Q3 KPI dashboard: revenue: 124M, margin: 28% in navy");
+    for m in &spec.metrics {
+        assert!(!m.value.contains("navy"), "value {:?} must not absorb 'in navy'", m.value);
+    }
+    assert!(
+        spec.metrics.iter().any(|m| m.value == "28%"),
+        "margin cleans to 28%"
+    );
+}
+
+#[test]
+fn hero_layout_has_no_sections() {
+    let r = InfographicIntentRouter::new();
+    let spec = r.parse_and_route("Create a motivational hero quote poster in sunset");
+    assert_eq!(spec.layout_id, "hero_quote");
+    assert!(spec.sections.is_empty(), "hero must have zero sections");
+}

@@ -496,8 +496,12 @@ impl InfographicIntentRouter {
 
         // Deterministic parameter extraction from the prompt (no invention).
         let title = extract_title(prompt).unwrap_or_else(|| "INFOGRAPHIC".to_string());
-        let step_count =
-            extract_step_count(&prompt_lower).unwrap_or(layout.constraints.min_sections.max(1));
+        // A layout with max_sections==0 (hero/quote, kpi snapshot) gets no sections.
+        let step_count = if layout.constraints.max_sections == 0 {
+            0
+        } else {
+            extract_step_count(&prompt_lower).unwrap_or(layout.constraints.min_sections.max(1))
+        };
 
         let metrics = extract_metrics(&prompt_lower);
         let sections = build_sections(step_count, &layout, prompt);
@@ -753,7 +757,8 @@ fn extract_metrics(prompt_lower: &str) -> Vec<MetricCardSpec> {
         // ("Q3 KPI dashboard: revenue: 124M") bind the last pair correctly.
         let mut best: Option<(usize, String)> = None;
         for (idx, _) in part.match_indices(':') {
-            let v = normalize_thai_digits(part[idx + 1..].trim());
+            let raw = normalize_thai_digits(part[idx + 1..].trim());
+            let v = trim_value_tail(&raw);
             let starts_numeric = v.chars().next().is_some_and(|c| {
                 c.is_ascii_digit() || c == '<' || c == '>' || thai_digit(c).is_some()
             });
@@ -890,6 +895,36 @@ fn thai_digit(c: char) -> Option<u32> {
     ('\u{0E50}'..='\u{0E59}')
         .contains(&c)
         .then(|| c as u32 - '\u{0E50}' as u32)
+}
+
+/// Trim a metric value to its numeric head + one unit token, dropping trailing
+/// words (e.g. "28% in navy" → "28%", "124M" stays "124M").
+fn trim_value_tail(v: &str) -> String {
+    let trimmed = v.trim();
+    let mut end = 0;
+    let mut seen_unit = false;
+    for (i, c) in trimmed.char_indices() {
+        let keep = c.is_ascii_digit()
+            || c == '.'
+            || c == '-'
+            || c == '%'
+            || c == '<'
+            || c == '>'
+            || (c.is_ascii_alphabetic() && !seen_unit && end > 0);
+        if keep {
+            if c.is_ascii_alphabetic() {
+                seen_unit = true;
+            }
+            end = i + c.len_utf8();
+        } else {
+            break;
+        }
+    }
+    if end == 0 {
+        trimmed.to_string()
+    } else {
+        trimmed[..end].to_string()
+    }
 }
 
 /// Converts Thai numeral characters in a string to ASCII digits.
