@@ -20,7 +20,56 @@ const HTML_FORM: &str = r#"<!doctype html><html><head><meta charset="utf-8"><tit
 <style>body{font-family:system-ui;background:#0B0F19;color:#F9FAFB;display:grid;place-items:center;min-height:100vh}input{width:560px;padding:12px;border-radius:8px;border:1px solid #333;background:#111827;color:#F9FAFB;font-size:16px}button{padding:12px 24px;border:0;border-radius:8px;background:#3B82F6;color:#fff;font-weight:700;cursor:pointer}</style></head>
 <body><form action="/render" method="get"><h1>katSVG Engine</h1>
 <input name="prompt" placeholder='e.g. Q3 KPI dashboard: revenue: 124M, users: 12M in navy' autofocus/>
-<button type="submit">Generate</button></form></body></html>"#;
+<button type="submit">Generate</button></form>
+<p><a href="/demo" style="color:#3B82F6">Open interactive demo →</a></p></body></html>"#;
+
+/// F7: single-page interactive demo — live SVG preview + 4 format downloads.
+const DEMO_PAGE: &str = r##"<!doctype html><html><head><meta charset="utf-8"><title>katSVG live demo</title>
+<style>
+body{font-family:system-ui;background:#0B0F19;color:#eee;margin:0;padding:24px}
+.wrap{max-width:900px;margin:0 auto}
+textarea{width:100%;padding:12px;border-radius:8px;border:1px solid #333;background:#111827;color:#eee;font-size:16px;font-family:inherit;resize:vertical;min-height:60px}
+.btns{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+.btns a{color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:700;background:#3B82F6}
+.btns a.pdf{background:#EF4444}.btns a.png{background:#10B981}.btns a.pptx{background:#F59E0B}
+#preview{margin-top:16px;border:1px solid #2a2a2a;border-radius:12px;background:#fff;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:auto}
+#preview svg{max-width:100%;height:auto}
+.meta{color:#9CA3AF;font-size:12px;margin-top:8px}
+</style></head>
+<body><div class="wrap">
+<h1>katSVG — interactive demo</h1>
+<p style="color:#9CA3AF">Type a prompt — the preview updates as you type. Download any format when ready.</p>
+<textarea id="p" autofocus placeholder="e.g. Q3 KPI dashboard: revenue: 124M, users: 12M in navy">Q3 KPI dashboard: revenue: 124M, users: 12M, margin: 28% in navy</textarea>
+<div class="btns">
+  <a id="dl-svg" href="#" download="infographic.svg">SVG</a>
+  <a id="dl-pdf" class="pdf" href="#" download="infographic.pdf">PDF</a>
+  <a id="dl-png" class="png" href="#" download="infographic.png">PNG</a>
+  <a id="dl-pptx" class="pptx" href="#" download="infographic.pptx">PPTX</a>
+</div>
+<div id="preview"><p style="color:#666">loading…</p></div>
+<div class="meta" id="meta"></div>
+</div>
+<script>
+const inp=document.getElementById('p'),prev=document.getElementById('preview'),meta=document.getElementById('meta');
+let t;
+function enc(s){return encodeURIComponent(s)}
+function refresh(){
+  const q=inp.value.trim(); if(!q){prev.innerHTML='<p style="color:#666">type a prompt…</p>';return;}
+  prev.innerHTML='<p style="color:#666">rendering…</p>';
+  fetch('/render?prompt='+enc(q)+'&format=all').then(r=>r.json()).then(d=>{
+    const t0=performance.now();
+    prev.innerHTML=d.svg_preview;
+    const el=prev.querySelector('svg'); if(el){el.style.maxWidth='100%';el.style.height='auto';}
+    meta.textContent='SVG '+Math.round(d.svg_b64.length*0.75)+'B · PDF '+Math.round(d.pdf_b64.length*0.75)+'B · PNG '+Math.round(d.png_b64.length*0.75)+'B · PPTX '+Math.round(d.pptx_b64.length*0.75)+'B · '+(performance.now()-t0).toFixed(0)+'ms';
+    document.getElementById('dl-svg').href='data:image/svg+xml;base64,'+d.svg_b64;
+    document.getElementById('dl-pdf').href='data:application/pdf;base64,'+d.pdf_b64;
+    document.getElementById('dl-png').href='data:image/png;base64,'+d.png_b64;
+    document.getElementById('dl-pptx').href='data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,'+d.pptx_b64;
+  }).catch(e=>{prev.innerHTML='<p style="color:#f87171">error: '+e+'</p>';});
+}
+inp.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(refresh,250);});
+refresh();
+</script></body></html>"##;
 
 fn content_type(fmt: &str) -> &'static str {
     match fmt {
@@ -48,6 +97,7 @@ fn handle(mut stream: TcpStream, router: &InfographicIntentRouter) {
 
     let (status, body): (String, Vec<u8>) = match (method, target) {
         ("GET", "/") => (status_ok(), HTML_FORM.as_bytes().to_vec()),
+        ("GET", "/demo") => (status_ok(), DEMO_PAGE.as_bytes().to_vec()),
         ("GET", t) if t.starts_with("/render") => {
             let query = t.split_once('?').map(|(_, q)| q).unwrap_or("");
             let params = parse_query(query);
