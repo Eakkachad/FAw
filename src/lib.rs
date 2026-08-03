@@ -15,6 +15,7 @@ pub mod palette;
 pub mod pdf_font;
 pub mod retrieval;
 pub mod router;
+pub mod strs;
 pub mod text;
 
 pub use chart::{ChartColors, ChartGlyphRenderer};

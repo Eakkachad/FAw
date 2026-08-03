@@ -185,10 +185,17 @@ pub struct InfographicLayoutSpec {
     /// Corpus layout id used to compose this spec (drives RegionCompositor).
     #[serde(default = "default_layout_id")]
     pub layout_id: String,
+    /// Detected prompt language (drives chrome-text i18n, F10).
+    #[serde(default = "default_lang")]
+    pub lang: crate::strs::Lang,
 }
 
 fn default_layout_id() -> String {
     "process_timeline".to_string()
+}
+
+fn default_lang() -> crate::strs::Lang {
+    crate::strs::Lang::En
 }
 
 // ── Layout Corpus Types (serde mirrors of `schemas/layout_corpus.schema.json`) ──
@@ -446,6 +453,7 @@ impl InfographicIntentRouter {
     /// extract parameters from prompt → compose → clamp (0.0% hallucination).
     pub fn parse_and_route(&self, prompt: &str) -> InfographicLayoutSpec {
         let prompt_lower = prompt.to_lowercase();
+        let lang = crate::strs::detect_lang(prompt);
 
         let theme = classify_theme(&prompt_lower);
         let aspect_ratio = classify_aspect_ratio(&prompt_lower);
@@ -500,12 +508,13 @@ impl InfographicIntentRouter {
             theme,
             aspect_ratio,
             title,
-            subtitle: Some("Generated via katSVG Neuro-Symbolic Vector Layout Engine".to_string()),
+            subtitle: Some(crate::strs::Strs::subtitle(lang).to_string()),
             metrics,
             sections,
             chart,
-            footer_note: Some("katSVG Engine • MIT License".to_string()),
+            footer_note: Some(crate::strs::Strs::footer(lang).to_string()),
             layout_id: layout.id.clone(),
+            lang,
         };
 
         // Enforce corpus bounds deterministically.

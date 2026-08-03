@@ -113,6 +113,7 @@ fn every_layout_instantiates_a_valid_spec() {
             chart: None,
             footer_note: None,
             layout_id: name.clone(),
+            lang: katsvg_engine::strs::Lang::En,
         };
         let max_metrics = seed.constraints.max_metrics.unwrap_or(4);
         let max_sections = seed.constraints.max_sections.unwrap_or(8);

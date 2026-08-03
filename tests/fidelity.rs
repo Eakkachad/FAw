@@ -87,6 +87,7 @@ fn unknown_layout_id_falls_back_to_legacy() {
         chart: None,
         footer_note: None,
         layout_id: "no_such_layout".to_string(),
+        lang: katsvg_engine::strs::Lang::En,
     };
     let svg = katsvg_engine::SVGVectorRenderer::render(&spec);
     assert!(svg.contains("<svg"), "fallback must still emit valid SVG");
