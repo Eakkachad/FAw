@@ -1,6 +1,7 @@
 # Build artifacts & binary targets
 /target/
 *.log
+cli_test_output/
 
 # OS Metadata
 .DS_Store
