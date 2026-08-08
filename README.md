@@ -2,7 +2,7 @@
 
 > **High-Speed, Lightweight, Zero-Hallucination SVG & Document Infographic Generator Engine**
 
-`katsvg-engine` is a pure Rust neuro-symbolic vector layout compositor and document export system. It parses text prompts into strongly-typed layout specifications (`InfographicLayoutSpec`) in **< 0.1 ms**, validates structural guardrails via `ConstraintPruner` (**0.0% Hallucination**), and renders native vector graphics and multi-format document packages (**SVG, PDF 1.7, PNG, PPTX**) in **< 20 ms**.
+`katsvg-engine` is a pure Rust, model-less vector layout compositor and document export system. It parses structured Thai/English prompts into strongly-typed layout specifications (`InfographicLayoutSpec`), validates structural guardrails via `ConstraintPruner`, and renders multi-format document packages (**SVG, PDF 1.7, PNG, PPTX**). Runtime rendering is deterministic, offline, and does not perform LLM inference.
 
 ---
 
@@ -95,31 +95,116 @@ fn main() {
 
 ---
 
+## 🗂️ Project Layout
+
+```text
+katsvg-engine/
+├── src/                 Rust library, router, compositor, renderers, exporters
+├── src/bin/             CLI, HTTP server, benchmark, and WASM entry points
+├── corpus/              Embedded layouts, palettes, and icons
+├── schemas/             JSON schemas for corpus and data binding
+├── assets/              Embedded fonts and font resources
+├── tests/               Integration and anti-overclaim verification tests
+├── examples/            Rust integration examples
+├── docs/                Benchmark and project documentation
+└── .research/           Research notes and source papers
+```
+
 ## 🏗️ Architecture
 
-```
-User Prompt Input (Thai / English)
-  │
-  ▼
-InfographicIntentRouter (corpus-driven, model-less)
-  │  retrieve LayoutDef from embedded layout corpus
-  │  deterministic parameter extraction (step count, metrics, title)
-  ▼
-InfographicConstraintPruner (katgpt-core ConstraintPruner trait
-  │                        + per-layout bounds, violations()/clamp())
-  ▼
-InfographicLayoutSpec (Strongly-Typed Latent MCP Target)
-  │
-  ├── SVGVectorRenderer        ──> infographic.svg
-  ├── PDFVectorExporter        ──> infographic.pdf (PDF 1.7)
-  ├── PNGRasterExporter        ──> infographic.png
-  └── PPTXPresentationExporter    ──> infographic.pptx (OpenXML)
+```mermaid
+flowchart TD
+    User[User / Client]
+
+    subgraph Entry[Entry Points]
+        CLI[CLI katsvg]
+        Server[HTTP Server]
+        WASM[WASM API]
+        RustAPI[Rust Crate API]
+    end
+
+    User --> CLI
+    User --> Server
+    User --> WASM
+    User --> RustAPI
+
+    subgraph Input[Input]
+        Prompt[Thai / English Prompt]
+        Data[JSON or CSV Data]
+        SavedSpec[Saved Layout Spec JSON]
+    end
+
+    CLI --> Prompt
+    CLI --> Data
+    CLI --> SavedSpec
+    Server --> Prompt
+    WASM --> Prompt
+    RustAPI --> Prompt
+
+    subgraph Routing[Intent Routing]
+        Detect[Language, Theme, Aspect Detection]
+        Extract[Deterministic Parameter Extraction]
+        Retrieve[Layout Retrieval Pipeline]
+    end
+
+    Prompt --> Detect
+    Prompt --> Extract
+    Prompt --> Retrieve
+
+    Corpus[Embedded Layout Corpus<br/>10 Layout Archetypes]
+    Palettes[Palette Registry]
+    Icons[Embedded Vector Icons]
+
+    Retrieve --> Corpus
+    Detect --> Palettes
+    Extract --> Icons
+
+    subgraph Validation[Validation and Composition]
+        Layout[LayoutDef]
+        Pruner[InfographicConstraintPruner]
+        Spec[InfographicLayoutSpec]
+    end
+
+    Corpus --> Layout
+    Layout --> Spec
+    Detect --> Spec
+    Extract --> Spec
+    Data --> Binding[Data Binding]
+    Binding --> Spec
+    SavedSpec --> Spec
+    Spec --> Pruner
+    Layout --> Pruner
+    Pruner --> Spec
+
+    subgraph Rendering[Rendering and Export]
+        SVG[SVG Vector Renderer]
+        PDF[PDF Vector Exporter]
+        PNG[PNG Raster Exporter]
+        PPTX[PPTX OOXML Exporter]
+    end
+
+    Spec --> SVG
+    Spec --> PDF
+    Spec --> PNG
+    Spec --> PPTX
+
+    SVG --> SVGOut[infographic.svg]
+    PDF --> PDFOut[infographic.pdf]
+    PNG --> PNGOut[infographic.png]
+    PPTX --> PPTXOut[infographic.pptx]
+
+    Core[katgpt-core ConstraintPruner Trait]
+    Core -. build-time dependency .-> Pruner
 ```
 
-> **katGPT integration:** the engine reuses `katgpt-core`'s `ConstraintPruner`
-> trait for structural validity (0.0% hallucination) and follows the katgpt-rs
-> modelless-first mandate — no transformer inference at runtime. The routing
-> layer is corpus-driven, not an LLM.
+### Runtime properties
+
+- **Model-less:** the routing layer uses deterministic rules and a closed layout corpus; no transformer inference runs at runtime.
+- **Offline:** fonts, layouts, palettes, and icons are embedded or local; runtime network access is not required.
+- **Deterministic:** identical input and build produce equivalent specs and byte-stable artifacts.
+- **Structural safety:** `ConstraintPruner` reports and clamps layout bounds; this does not guarantee the truth of arbitrary prompt content.
+
+See [`docs/BENCH_REPORT.md`](docs/BENCH_REPORT.md) for the measured release benchmark and reproduction commands.
 
 ---
 
