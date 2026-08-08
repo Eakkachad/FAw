@@ -204,6 +204,8 @@ flowchart TD
 - **Deterministic:** identical input and build produce equivalent specs and byte-stable artifacts.
 - **Structural safety:** `ConstraintPruner` reports and clamps layout bounds; this does not guarantee the truth of arbitrary prompt content.
 
+See [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md) for the detailed system flow, per-component Mermaid diagrams, usage example, and sample outputs.
+
 See [`docs/BENCH_REPORT.md`](docs/BENCH_REPORT.md) for the measured release benchmark and reproduction commands.
 
 ---
